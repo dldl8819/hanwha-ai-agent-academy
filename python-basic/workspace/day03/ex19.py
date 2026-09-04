@@ -69,3 +69,20 @@ class MathTool:
         return a - b
 
 print(MathTool.add(1, 2))
+
+class Person:
+    def __init__(self, age):
+        self.age = age
+
+    @property
+    def age(self):          # getter : 외부에서 age 값을 원할 때 반환해주는 메서드
+        return self._age    # self.age 라고 작성하면 무한 반복 -> 관례적으로 _(언더바) 1개를 앞에 붙여서 사용
+
+    @age.setter
+    def age(self, val):     # setter : 외부에서 전달한 값으로 age 변수에 값 세팅
+        if not isinstance(val, int):
+            print("저장할 값이 정수가 아닙니다.")
+        if val < 0:
+            print("나이는 음수가 불가능합니다.")
+        self._age = val
+p1 = Person(-5)
