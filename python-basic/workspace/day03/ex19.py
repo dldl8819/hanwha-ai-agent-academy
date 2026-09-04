@@ -86,3 +86,21 @@ class Person:
             print("나이는 음수가 불가능합니다.")
         self._age = val
 p1 = Person(-5)
+
+
+class Item:
+    def __init__(self, num):
+        self.num = num
+
+    def __repr__(self):
+        return "Item(name='몬스터볼')"
+
+    def __eq__(self, value):
+        return self.num == value.num
+
+# print(repr(Item()))
+
+item1 = Item(10)
+item2 = Item(10)
+
+print(item1 == item2)
