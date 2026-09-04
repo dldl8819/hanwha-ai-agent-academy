@@ -32,3 +32,14 @@ else:
     print(p.age)
 
 print(p.age)
+
+#--------------------------
+
+class MyException(Exception):
+    pass
+
+try:
+    print("사용자 정의 예외 만들기")
+    raise MyException("경고!!예외가 발생했습니다!")
+except MyException as e:
+    print("예외 처리가 필요합니다. : ", e)
