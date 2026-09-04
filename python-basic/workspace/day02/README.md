@@ -57,3 +57,14 @@ print("total: ", tot)
 - 문자열 처리: `[word.upper() for word in words]`
 - 중첩 for문으로 다중 리스트(matrix) 풀어서 1차원으로 만들기
 - 보조 제어문 복습: `break`(반복 종료), `continue`(현재 회차만 건너뛰기)
+
+## 복습 문제 풀이 ([ex17.py](ex17.py))
+
+day02 숙제로 받은 문제 6개 풀이:
+
+1. 리스트 인덱스 두 개 값 교환 (`lst[i], lst[j] = lst[j], lst[i]`)
+2. `[1,3,4,5,2]` → `[5,4,3,2,1]` (`.sort(reverse=True)`)
+3. 중첩 리스트 인덱싱으로 값 꺼내기
+4. 국어/영어/수학 점수 입력받아 총점·평균 계산
+5. 카페 주문 프로그램 (딕셔너리로 메뉴 관리, `while`로 계속 주문받기)
+6. Up/Down 숫자 맞추기 게임 (`random.randint`, 중첩 `while`로 재시작 처리)
