@@ -20,17 +20,17 @@ print(soul.age)
 
 class Student:
     # 클래스 변수
-    school = "HeiFam"
+    school: str = "HeiFam"
 
-    def __init__(self, name, score):
-        self.name = name
-        self.score = score
+    def __init__(self, name: str, score: int):
+        self.name: str = name
+        self.score: int = score
 
     # 인스턴스 메서드
-    def is_passed(self):
+    def is_passed(self) -> bool:
         return self.score >= 60
 
-    def show_info(self):
+    def show_info(self) -> None:
         result = "합격" if self.is_passed() else "불합격"
         print(f"{self.name}님은 {self.score}점으로 {result}입니다.")
 
@@ -47,9 +47,9 @@ class Student:
         return a + b 
 
 # 객체 생성
-s1 = Student("셋쇼", 100)
-s2 = Student("고니", 50)
-s3 = Student("민식", 60)
+s1: Student = Student("셋쇼", 100)
+s2: Student = Student("고니", 50)
+s3: Student = Student("민식", 60)
 
 # 메서드 호출
 s1.show_info()
