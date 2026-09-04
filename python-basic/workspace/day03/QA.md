@@ -45,3 +45,45 @@ class Person:
 - 개발자 입장에서는 "호출한 적도 없는데 알아서 실행되네?"처럼 보여서, 마치 마법처럼 느껴진다고 해서 **magic method**라는 별명이 붙었다.
 
 정리: **던더**는 이름의 생김새(밑줄 2개)에서, **매직**은 특정 문법을 만나면 파이썬이 자동으로 호출해준다는 동작 특성에서 나온 별명이다.
+
+## Q3. class A가 B의 부모, B가 C의 부모, C가 D의 부모이면, D는 A/B/C의 자식이라고 할 수 있나요?
+
+**답변**
+
+네, 맞다. 다만 정확히는 "다중 상속"이 아니라 **다단계 상속(multi-level inheritance)**이라는 별개의 개념이다.
+
+```python
+class A:
+    def a(self): pass
+
+class B(A):   # B는 A의 자식
+    def b(self): pass
+
+class C(B):   # C는 B의 자식 (= A의 손자)
+    def c(self): pass
+
+class D(C):   # D는 C의 자식 (= B의 손자, A의 증손자)
+    def d(self): pass
+
+d = D()
+d.a()  # A에게서 물려받음
+d.b()  # B에게서 물려받음
+d.c()  # C에게서 물려받음
+d.d()  # 자기 것
+
+print(isinstance(d, A))  # True
+print(isinstance(d, B))  # True
+print(isinstance(d, C))  # True
+print(D.__mro__)         # (D, C, B, A, object) — 조회 순서
+```
+
+**가족 관계로 비유하면**: D는 C의 친자식, C는 B의 친자식, B는 A의 친자식이니까 D 입장에서 C는 부모, B는 조부모, A는 증조부모가 된다. 족보상 D는 A, B, C 모두의 "후손"이 맞고, 조상들이 가진 재산(속성)과 기술(메서드)을 대를 이어 전부 물려받는다.
+
+**다중 상속(`class D(A, B, C)`)과 헷갈리지 않게 구분하면:**
+
+| 구분 | 관계 | 부모 개수 |
+| --- | --- | --- |
+| 다중 상속 (Multiple) | D가 A, B, C를 **동시에** 직접 상속 | 한 세대에 부모가 여러 명 |
+| 다단계 상속 (Multi-level) | A→B→C→D로 **한 줄로 이어서** 상속 | 각 세대마다 부모는 1명, 대신 세대가 여러 층 |
+
+자세한 내용은 [concepts/09_상속.md](../concepts/09_상속.md) 참고.
