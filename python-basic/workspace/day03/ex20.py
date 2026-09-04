@@ -2,65 +2,60 @@ class Person:
     def __init__(self, name):
         self.name = name
 
-    def study(self):
-        print(f"{self.name}님은 공부를 한다.")
+    def work(self):
+        print(f"{self.name}이/가 일을 한다.")
 
-class Heifam(Person):   # self.name, study()
+class Postman(Person):  # self.name, work()
+    # 오버라이딩 : 부모로부터 물려받은 기능이 마음에 안들어, 내용물을 수정하는 것
+    def __init__(self, name, postman_id):
+        super().__init__(name) # 부모 생성자 호출하여 name 속성 초기화
+        self.postman_id = postman_id
 
-    def __init__(self, name, email):
-        super().__init__(name) # 부모 생성자를 호출하여 name 속성 초기화
-        self.email = email
+    def work(self):
+        print(f"{self.name}이/가 우편물을 배달한다.")
 
-    # 오버라이딩 
-    # 부모로부터 물려받은 기능을 수정하는 것
-    # 기존 def study(self): 선언부는 동일해야 한다.
-    def study(self):
-        print(f"{self.name}님은 Python 공부를 한다.")
 
-member = Heifam("소울", "test@example.com")
-print(f"{member.name}님의 이메일 주소는 {member.email}입니다.") 
 
-member.study()
-member.name = "민식"    # 물려받은 변수의 값 수정
-member.study()
+p = Postman("우체부", 100)
+print(p.name)
+# print(p.postman_id)
+p.work()
 
-# 다중 상속 가능 
+per = Person("부모")
+print(per.name)
+per.work()
 
+
+
+#---------------------------------------------------
 class A:
-    def __init__(self):
-        print("A 생성자")
+    def hello(self):
+        print("hello AAA")
 
-    def a(self):
-        pass
+class B(A):
+    # override
+    def hello(self):
+        print("hello BBB")
 
-class B:
-    def __init__(self):
-        print("B 생성자")
+class C(A):
+    # override
+    def hello(self):
+        print("hello CCC")
 
-    def b(self):
-        pass
+class F:
+    def hello(self):
+        print("FFFF")
 
-class C:
-    def __init__(self):
-        print("C 생성자")
+class D(B, C):
+    # override
+    def hello(self):
+        print("hello DDD")
+        super(D, self).hello() # BBB
+        super(C, self).hello() # AAA
+        super(B, self).hello() # CCC
+        # super(F, self).hello() # error 부모자식 관계 X
+        # super(A, self).hello() # error object는 hello() 메서드 없음
 
-    def c(self):
-        pass
-
-class D(A, B, C):
-    def __init__(self):
-        print("D 생성자")
-
-    def d(self):
-        pass
-# 상속을 받아도 본인의 생성자만 실행된다.
-
-a1 = A()
-b1 = B()
-c1 = C()
-d1 = D()
-
-d1.a()
-d1.b()
-d1.c()
-d1.d()
+x = D()
+x.hello()
+print(D.mro())
