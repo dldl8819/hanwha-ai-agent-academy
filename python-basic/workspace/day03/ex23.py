@@ -15,7 +15,7 @@ with open('Heifam.txt', 'r', encoding='utf-8') as f:
 print("-" * 40)
 
 # 모든 줄 리스트로 읽기
-with open('heifam.txt', 'r', encoding='utf-8') as f:
+with open('Heifam.txt', 'r', encoding='utf-8') as f:
     lines = f.readlines()
     print(lines)
 
