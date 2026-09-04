@@ -87,3 +87,106 @@ print(D.__mro__)         # (D, C, B, A, object) — 조회 순서
 | 다단계 상속 (Multi-level) | A→B→C→D로 **한 줄로 이어서** 상속 | 각 세대마다 부모는 1명, 대신 세대가 여러 층 |
 
 자세한 내용은 [concepts/09_상속.md](../concepts/09_상속.md) 참고.
+
+## Q4. MRO가 무슨 뜻인가요?
+
+**답변**
+
+**MRO = Method Resolution Order**(메서드 결정 순서). 다중 상속에서 같은 이름의 메서드를 여러 부모가 갖고 있을 때, 파이썬이 "어느 클래스의 메서드를 쓸지" 탐색하는 순서를 말한다.
+
+- 사용하는 알고리즘 이름은 **C3 선형화(C3 linearization)**.
+- 기본 원칙: 자기 자신 → 왼쪽 부모부터 → 오른쪽 부모 → ... → `object` 순으로 검색.
+- `클래스.mro()` 또는 `클래스.__mro__`로 실제 탐색 순서를 직접 확인할 수 있다.
+
+```python
+class A:
+    def greet(self): print("A")
+
+class B(A):
+    def greet(self): print("B")
+
+class C(A):
+    def greet(self): print("C")
+
+class D(B, C):   # 다이아몬드 상속: B, C가 둘 다 A를 상속
+    pass
+
+d = D()
+d.greet()          # "B" — 왼쪽(B)이 오른쪽(C)보다 우선
+print(D.mro())      # [D, B, C, A, object] — A는 중복 없이 한 번만 탐색됨
+```
+
+## Q5. `D(B, C)`처럼 D가 B, C만 상속받아도, B와 C가 둘 다 A를 상속하고 있으면 D도 A를 물려받나요?
+
+**답변**
+
+네, 맞다. D 선언에는 A가 직접 안 보이지만, B와 C가 각각 A를 상속하고 있으므로 D도 **전이(transitive) 상속**으로 A를 물려받는다.
+
+```python
+class A: pass
+class B(A): pass   # B는 A를 상속
+class C(A): pass   # C도 A를 상속
+class D(B, C): pass  # D는 B, C만 직접 나열했지만...
+
+print(isinstance(D(), A))  # True — D도 결국 A의 자손
+print(D.mro())              # [D, B, C, A, object]
+```
+
+여기서 진짜 흥미로운 지점은 "A를 물려받느냐"가 아니라, A로 가는 경로가 B를 통해서/C를 통해서 두 갈래인데 **왜 MRO에는 A가 딱 한 번만 나타나느냐**다. C3 선형화가 "공통 조상(A)은 그 조상을 상속한 모든 자식(B, C)보다 반드시 뒤에 위치해야 한다"는 규칙을 지켜서, 중복 없이 한 줄로 순서를 정리해주기 때문이다.
+
+## Q6. 각 클래스에 같은 이름의 메서드(`hello`)가 있을 때, 자식(D)에는 그 메서드가 없으면 어떤 부모의 것이 호출되나요?
+
+**답변**
+
+MRO 순서대로 훑다가 **그 메서드가 정의된 첫 번째 클래스를 만나면 거기서 멈춘다.** 더 뒤에 있는 클래스는 확인하지 않는다.
+
+```python
+class A:
+    def hello(self): print("hello A")
+
+class B(A):
+    def hello(self): print("hello B")
+
+class C(A):
+    def hello(self): print("hello C")
+
+class D(B, C):
+    pass   # hello 없음
+
+d = D()
+d.hello()   # "hello B" 출력 — MRO [D, B, C, A, object]에서 B가 첫 매치, C/A는 호출 안 됨
+```
+
+오버라이딩과 같은 원리다 — 여러 부모 것을 합치거나 다 실행하는 게 아니라, "가장 먼저 만나는 것 하나만" 실행하고 멈춘다.
+
+## Q7. D에서 `super(D, self)`, `super(B, self)`, `super(C, self)`를 순서대로 호출하면 어떻게 되나요?
+
+**답변**
+
+```python
+class D(B, C):
+    def hello(self):
+        print("hello D")
+        super(D, self).hello()
+        super(B, self).hello()
+        super(C, self).hello()
+
+d = D()
+d.hello()
+# hello D
+# hello B
+# hello C
+# hello A
+```
+
+`super(클래스, self)`는 "`self`의 실제 타입(D)의 MRO `[D, B, C, A, object]`에서, **지정한 클래스 바로 다음부터** 찾아라"라는 뜻이다. 항상 D의 MRO를 기준으로 찾기 때문에, 기준 클래스를 D → B → C로 바꿔가며 호출하면 그 다음 자리(B → C → A)를 하나씩 순서대로 불러올 수 있다.
+
+| 호출 | MRO `[D, B, C, A, object]`에서 시작 위치 | 결과 |
+| --- | --- | --- |
+| `super(D, self)` | D 다음부터 | B |
+| `super(B, self)` | B 다음부터 | C |
+| `super(C, self)` | C 다음부터 | A |
+
+참고로 인자 없이 `super().hello()`만 쓰면 `super(D, self)`와 같아서 B만 호출되고 끝난다(Q6과 동일한 "첫 매치에서 멈춘다" 동작). 지금처럼 기준 클래스를 바꿔가며 명시적으로 여러 번 호출하는 건 MRO 동작 원리를 이해하는 데는 좋지만, 실전에서는 각 클래스가 자기 메서드 안에서 `super().메서드()`를 호출해 체인처럼 자동으로 이어지게 하는 협력적 다중 상속 패턴이 더 흔하다.
+
+자세한 내용은 [concepts/09_상속.md](../concepts/09_상속.md) 참고.
