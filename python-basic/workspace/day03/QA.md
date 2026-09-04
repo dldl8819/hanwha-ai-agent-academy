@@ -217,3 +217,49 @@ NameError: name '__file__' is not defined
 ```
 
 정리하면: `__file__`은 "이 코드를 담고 있는 파일" 자체를 가리키는 건데, REPL은 파일 없이 즉석 실행이라 애초에 가리킬 대상이 없는 것.
+
+## Q9. lambda식이 뭔가요?
+
+**답변**
+
+`lambda`는 **이름 없는(익명) 함수를 한 줄로 만드는 문법**이다.
+
+```python
+lambda 매개변수: 반환값
+```
+
+`def`로 함수를 따로 정의하지 않고, 필요한 자리에서 즉석으로 간단한 함수를 만들어 쓸 때 사용한다.
+
+```python
+# def로 만든 함수
+def two_times(x):
+    return x * 2
+
+# lambda로 만든 같은 함수
+two_times = lambda x: x * 2
+
+print(two_times(5))   # 10
+```
+
+**핵심 특징**
+- `def`, 함수 이름, `return` 키워드가 없다 — 표현식(expression) 하나만 쓰고, 그 값이 자동으로 반환값이 된다.
+- 여러 줄짜리 로직은 담을 수 없다(조건문 정도는 삼항 연산자로 우회 가능하지만, 복잡한 로직이면 `def`를 쓰는 게 맞다).
+- 주로 `map()`, `filter()`, `sorted(key=...)`처럼 **함수를 인자로 받는 다른 함수 안에서, 한 번만 쓰고 버릴 함수**를 만들 때 쓴다.
+
+```python
+# filter와 함께 — 양수만 걸러내기
+list(filter(lambda x: x > 0, [1, -3, 2, 0, -5, 6]))
+# [1, 2, 6]
+
+# map과 함께 — 각 요소를 2배로
+list(map(lambda x: x * 2, [1, 2, 3, 4]))
+# [2, 4, 6, 8]
+
+# sorted의 key로 — 문자열 길이 기준 정렬
+sorted(["banana", "kiwi", "apple"], key=lambda s: len(s))
+# ['kiwi', 'apple', 'banana']
+```
+
+매번 `def`로 함수 이름을 짓고 정의하는 대신, 딱 그 자리에서만 쓰고 버릴 간단한 함수는 `lambda`로 인라인 처리하는 게 훨씬 간결하다.
+
+자세한 내용은 [concepts/15_내장함수.md](../concepts/15_내장함수.md) 참고.
