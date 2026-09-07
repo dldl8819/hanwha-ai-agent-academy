@@ -3,10 +3,10 @@ def greeting(name="아무개"):
 greeting()
 greeting("민식")
 
-# 에러 발생
-def greeting2(name="아무개", age):
-	print(f"안녕하세요, {age}살이신 {name}님")
-greeting2(10)
+# 에러 발생 (SyntaxError: parameter without a default follows parameter with a default)
+# def greeting2(name="아무개", age):
+# 	print(f"안녕하세요, {age}살이신 {name}님")
+# greeting2(10)
 
 # default값이 있는 매개변수는 뒤쪽에 배치해주어야 한다.
 def greeting2(age, name="아무개"):
@@ -37,11 +37,11 @@ def tot(num, *args):
 tot(10, 20, 30)
 
 # TypeError: tot() missing 1 required keyword-only argument: 'num'
-def tot(*args, num):
-	print(num, args)
-	print(type(args))
-	return sum(args)
-tot(10, 20, 30)
+# def tot(*args, num):
+# 	print(num, args)
+# 	print(type(args))
+# 	return sum(args)
+# tot(10, 20, 30)
 
 # 가변 인자와 default 값의 위치? 
 def tot3(num, age=1000, *args):
