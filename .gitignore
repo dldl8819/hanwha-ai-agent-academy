@@ -12,3 +12,4 @@ python-basic/workspace/blog/복붙용/
 python-basic/workspace/arimKim/
 hanwha-agent/blog/00_포스팅_가이드.md
 hanwha-agent/blog/복붙용/
+*.log
