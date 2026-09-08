@@ -65,8 +65,92 @@ print(settings.app_mode, settings.max_tokens)
 APP_MODE=mock
 ANTHROPIC_API_KEY=your-claude-api-key
 LLM_MODEL=claude-haiku-4-5
-MAX_TOKEN=400
+MAX_TOKENS=400
 DAILY_CALL_LIMIT=200
+```
+
+`case_sensitive=False`(기본값)라 대소문자는 안 맞아도 되지만, 철자 자체는 필드명과 정확히 일치해야 한다. `.env`에 `MAX_TOKEN`(S 없음)이라고 적어두면 필드 `max_tokens`(S 있음)와 매칭이 안 돼서, 에러 없이 조용히 기본값만 쓰이고 `.env`에 적어둔 값은 영영 안 읽힌다.
+
+## SecretStr — 값을 로그에 노출하지 않기
+
+API 키처럼 민감한 값은 타입을 `str` 대신 `SecretStr`로 지정한다. `print()`나 로그에 실수로 찍혀도 실제 값 대신 `**********`로 가려진다.
+
+```python
+from pydantic import SecretStr
+
+class Settings(BaseSettings):
+    anthropic_api_key: SecretStr | None = None  # 필수가 아니면 `| None = None`
+
+settings = Settings()
+print(settings.anthropic_api_key)          # **********
+print(settings.anthropic_api_key.get_secret_value())  # 실제 값 (필요할 때만 명시적으로 꺼낸다)
+```
+
+## 실전 프로젝트 적용 (backend/app/core/config.py)
+
+`Settings` 클래스는 프로젝트에서 한 곳(`backend/app/core/config.py`)에만 정의하고, `get_settings()` 함수로 어디서나 같은 인스턴스를 가져다 쓴다. `@lru_cache`를 붙이면 `Settings()`가 최초 1번만 만들어지고, 이후 호출은 캐시된 같은 객체를 반환한다.
+
+```python
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field, SecretStr
+from functools import lru_cache
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+        case_sensitive=False,
+    )
+
+    app_mode: str = Field(default="mock", pattern=r"^(mock|live)$")
+    anthropic_api_key: SecretStr | None = None
+    llm_model: str = "claude-haiku-4-5"
+    max_tokens: int = Field(default=400, ge=1, le=8192)
+    temperature: float = Field(default=0.0, ge=0.0, le=1.0)
+    daily_call_limit: int = Field(default=200, ge=1)
+    max_input_chars: int = Field(default=200, ge=1)
+    database_url: str = "sqlite:///./app.db"
+    debug: bool = False
+    allow_external_send: bool = False
+
+    @property
+    def is_live(self) -> bool:
+        return self.app_mode == "live"
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()
+```
+
+노트북(`sandbox/`)에서 `backend/app` 모듈을 그대로 가져다 쓰려면, cwd를 프로젝트 루트로 옮긴 뒤 `backend`를 `sys.path`에 추가해야 한다.
+
+```python
+import sys
+
+if "backend" not in sys.path:
+    sys.path.insert(0, "backend")
+
+from app.core.config import get_settings
+
+settings = get_settings()
+print(settings.app_mode, settings.is_live, settings.top_k)
+```
+
+## 환경변수 초기화 (테스트할 때)
+
+`.env`나 이전 셀에서 이미 설정된 값을 지우고 다시 테스트하고 싶을 때는 `os.environ.pop()`을 쓴다. 키가 없어도 에러가 나지 않는다(두 번째 인자 `None`이 기본값 역할).
+
+```python
+import os
+
+# 1개 삭제
+os.environ.pop("APP_MODE", None)
+
+# 여러 개 삭제
+keys = ["APP_MODE", "ANTHROPIC_API_KEY"]
+for key in keys:
+    os.environ.pop(key, None)
 ```
 
 ## 설정 관리 시 주의할 점
@@ -102,4 +186,4 @@ top_k = settings.top_k
 
 **`.env`와 `.env.example`을 함께 관리한다.** `.env`는 실제로 쓰는 값(민감 정보 포함, git에 올리지 않음)이고, `.env.example`은 어떤 키가 필요한지 이름과 설명만 적어둔 샘플(git에 올림)이다.
 
-참고: sandbox/w2/day01/02.환경변수설정.ipynb
+참고: sandbox/w2/day01/02.환경변수설정.ipynb, sandbox/w2/day02/01.환경변수세팅.ipynb, backend/app/core/config.py
