@@ -19,7 +19,7 @@ class NotFound(AgentError):
 # 자원은 있으나, 이 사용자가 접근할 수 없다.
 class PermissionDenied(AgentError):
     status_code = 403
-    code = "Permission_denied"
+    code = "permission_denied"
 
 # 입력값이 규칙에 맞지 않다.
 class ValidationError(AgentError):
