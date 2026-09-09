@@ -6,6 +6,77 @@ app = FastAPI(
     version="0.1.0"
 )
 
+# DB 대신 아래 임시 데이터 사용 
+documents = [
+    {
+        "doc_id": "DOC-HR-014",
+        "title": "2026년 휴가 운영 규정",
+        "dept": "인사",
+        "security_level": "일반",
+        "file_format": "docx",
+        "status": "active",
+    },
+    {
+        "doc_id": "DOC-HR-021",
+        "title": "복리후생 운영 지침",
+        "dept": "인사",
+        "security_level": "일반",
+        "file_format": "pdf",
+        "status": "active",
+    },
+    {
+        "doc_id": "DOC-SE-011",
+        "title": "정보보안 관리 규정",
+        "dept": "보안",
+        "security_level": "3급",
+        "file_format": "pdf",
+        "status": "active",
+    },
+    {
+        "doc_id": "DOC-PU-007",
+        "title": "구매 계약 업무 지침",
+        "dept": "구매",
+        "security_level": "대외비",
+        "file_format": "docx",
+        "status": "active",
+    },
+]
+
+# 아래 요청 경로들을 실행하면 적절한 데이터가 응답 되도록 요청 함수를 작성하십시오.
+# 모든 파라미터 생략 가능
+# `limit` 파라미터 : 기본 값 20, 범위 1 ~ 100
+
+# /practice/documents                                     문서 전체 조회 
+# /practice/documents?dept=인사                           인사 부서의 데이터 조회 
+# /practice/documents?security_level=3급                  보안 등급 3급 데이터 조회 
+# /practice/documents?file_format=pdf                     pdf 문서 조회 
+# /practice/documents?dept=인사&file_format=pdf           인사 부서의 pdf 파일 조회 
+
+# 요청 함수
+@app.get("/practice/documents")
+def search_documents(
+    dept: str | None = None,
+    security_level: str | None = None,
+    file_format: str | None = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+) -> list[dict]:
+    # 원본 복사
+    result = documents.copy()
+    # 부서 조건
+    if dept is not None:
+        result = [doc for doc in result if doc["dept"] == dept]
+
+    # 보안 등급
+    if security_level is not None:
+        result = [doc for doc in result if doc["security_level"] == security_level]
+
+    # 파일 형식
+    if file_format is not None:
+        result = [doc for doc in result if doc["file_format"] == file_format]
+
+    # limit
+    return result[:limit]
+
 # --- 사용자 요청을 처리해줄 uri 매핑 함수들 ---
 
 # 요청 함수
@@ -65,3 +136,5 @@ def get_document(doc_id: str) -> dict:
 @app.get("/levels/{level}")
 def get_level(level: int) -> dict:
     return {"level": level}
+
+
