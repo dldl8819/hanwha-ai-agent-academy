@@ -12,4 +12,5 @@ python-basic/workspace/blog/복붙용/
 hanwha-agent/blog/00_포스팅_가이드.md
 hanwha-agent/blog/복붙용/
 *.log
+*.db
 강사님/
