@@ -1,3 +1,4 @@
+'''
 from fastapi import FastAPI, Query
 from typing import Annotated
 
@@ -136,5 +137,5 @@ def get_document(doc_id: str) -> dict:
 @app.get("/levels/{level}")
 def get_level(level: int) -> dict:
     return {"level": level}
-
+'''
 
