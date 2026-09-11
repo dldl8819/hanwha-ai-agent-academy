@@ -208,14 +208,13 @@ with SessionLocal() as session:
 
 ### 실전 적용: `backend/app/db/session.py`
 
-노트북 실습을 실제 프로젝트에서 쓸 형태로 정리한 모듈이다. Engine과 Session을 앱 전체에서 하나씩만 만들어두고, 어디서든 `session_scope()`로 가져다 쓰는 구조다.
+노트북 실습을 실제 프로젝트에서 쓸 형태로 정리한 모듈이다. 처음에는 `engine`/`SessionLocal`을 모듈 전역 변수로 딱 하나만 만들어뒀는데, 이후 여러 DB URL을 상황에 따라 쓸 수 있도록 `get_engine()`/`get_sessionmaker()` 함수 + 캐시 딕셔너리 구조로 리팩터링했다.
 
 #### Engine 생성 시 옵션
 
 | 옵션 | 의미 |
 | --- | --- |
 | `connect_args={"check_same_thread": False}` | SQLite는 기본적으로 커넥션을 만든 스레드에서만 쓸 수 있게 막혀 있는데, 여러 스레드(FastAPI의 요청 처리 등)에서 같이 쓸 수 있도록 그 검사를 끈다 |
-| `pool_pre_ping=True` | 커넥션 풀에서 커넥션을 꺼내 쓰기 전에 아직 살아있는지 ping으로 확인한다 |
 | `PRAGMA foreign_keys=ON` (연결 시 실행) | SQLite는 외래키 제약 조건 검사가 기본적으로 꺼져 있을 수 있어서, 연결이 새로 생길 때마다 켜준다 |
 | `expire_on_commit=False` | 기본값(`True`)이면 `commit()` 이후 ORM 객체의 속성에 접근할 때마다 DB를 다시 조회한다. 꺼두면 그 재조회를 막는다 |
 
@@ -224,41 +223,46 @@ with SessionLocal() as session:
 ```python
 from __future__ import annotations
 
-import os
 from collections.abc import Iterator
 from contextlib import contextmanager
 
-from sqlalchemy import Engine, create_engine, event, text
+from sqlalchemy import Engine, create_engine, event
 from sqlalchemy.orm import Session, sessionmaker
 
-# DB 경로 — 환경변수를 참고하고, 없으면 app.db 사용
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./app.db")
+from app.core.config import get_settings
 
-def build_engine() -> Engine:
-    options: dict = {"pool_pre_ping": True}
+# 만든 엔진을 URL별로 담아두는 상자 — 같은 URL이면 새로 안 만들고 재사용
+_ENGINES: dict[str, Engine] = {}
 
-    if DATABASE_URL.startswith("sqlite"):
-        options["connect_args"] = {"check_same_thread": False}
+def get_engine(url: str | None = None) -> Engine:
+    # 인자로 안 주면 환경변수(.env)의 DATABASE_URL을 쓴다
+    resolved = url or get_settings().database_url
+    if resolved in _ENGINES:
+        return _ENGINES[resolved]
 
-    db_engine = create_engine(DATABASE_URL, **options)
+    connect_args: dict[str, object] = {}
+    is_sqlite = resolved.startswith("sqlite")
+    if is_sqlite:
+        connect_args["check_same_thread"] = False
 
-    if DATABASE_URL.startswith("sqlite"):
-        @event.listens_for(db_engine, "connect")
-        def enable_foreign_keys(dbapi_connection, _connection_record) -> None:
+    engine = create_engine(resolved, connect_args=connect_args)
+
+    if is_sqlite:
+        @event.listens_for(engine, "connect")
+        def _enable_sqlite_foreign_keys(dbapi_connection, connection_record) -> None:
             cursor = dbapi_connection.cursor()
             cursor.execute("PRAGMA foreign_keys=ON")
             cursor.close()
 
-    return db_engine
+    _ENGINES[resolved] = engine
+    return engine
 
-# 애플리케이션 전체에서 Engine/세션 공장은 하나만 만들면 된다
-engine = build_engine()
-SessionLocal = sessionmaker(bind=engine, expire_on_commit=False)
+def get_sessionmaker(engine: Engine | None = None) -> sessionmaker[Session]:
+    return sessionmaker(bind=engine or get_engine(), expire_on_commit=False)
 
-# 세션의 시작·성공·실패·종료 규칙을 한곳에 모은 편의 함수
 @contextmanager
 def session_scope() -> Iterator[Session]:
-    session = SessionLocal()
+    session = get_sessionmaker()()  # 1번째 () = 공장(sessionmaker)을 받음, 2번째 () = 그 공장을 호출해 Session 생성
     try:
         yield session
         session.commit()
@@ -267,19 +271,11 @@ def session_scope() -> Iterator[Session]:
         raise
     finally:
         session.close()
-
-def main() -> None:
-    print(f"DB URL : {engine.url}")
-    print(f"DB 종류 : {engine.dialect.name}")
-
-    with session_scope() as session:
-        print(f"select 결과 : {session.execute(text('SELECT 1')).scalar_one()}")
-
-if __name__ == "__main__":
-    main()
 ```
 
-`db.startswith("sqlite")`로 분기해두는 이유는, `check_same_thread`나 `PRAGMA foreign_keys` 설정이 SQLite 전용이기 때문이다. 나중에 `DATABASE_URL`을 PostgreSQL로 바꾸면 이 분기는 자동으로 건너뛰어져서, 코드 수정 없이 DB만 교체할 수 있다.
+- `get_engine()`이 `resolved`(최종 DB URL)를 키로 `_ENGINES`에 캐시해두기 때문에, 같은 URL로 여러 번 호출해도 Engine을 매번 새로 만들지 않고 재사용한다. Engine 하나가 자체적으로 커넥션 풀을 갖고 있어서, 앱 전체에서 하나만 있으면 되기 때문이다.
+- `is_sqlite`로 분기해두는 이유는, `check_same_thread`나 `PRAGMA foreign_keys` 설정이 SQLite 전용이기 때문이다. 나중에 `DATABASE_URL`을 PostgreSQL로 바꾸면 이 분기는 자동으로 건너뛰어져서, 코드 수정 없이 DB만 교체할 수 있다.
+- `get_sessionmaker()()`처럼 괄호가 두 번 붙는 이유는, `get_sessionmaker()`가 반환하는 값 자체가 "세션을 찍어내는 공장"(`sessionmaker` 객체, 호출 가능)이기 때문이다. 첫 번째 `()`로 그 공장을 받고, 두 번째 `()`로 그 공장을 즉시 호출해서 진짜 `Session` 객체 하나를 만든다.
 
 ## 2. ORM 모델 설계
 
@@ -310,15 +306,60 @@ class Base(DeclarativeBase):
 
 # 생성일/수정일은 거의 모든 테이블에 공통으로 들어가는 컬럼이라 믹스인으로 분리
 class TimestampMixin:
-    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(default=datetime.now)
+    updated_at: Mapped[datetime] = mapped_column(default=datetime.now, onupdate=datetime.now)
 ```
 
 - `DeclarativeBase`를 상속받은 `Base`가 모든 ORM 모델의 공통 부모가 된다. `Base.metadata`에 정의된 모든 테이블 스키마가 모인다.
 - `TimestampMixin`처럼 여러 모델에 공통으로 섞어 넣을 속성은 별도 클래스로 분리해서 다중 상속으로 붙인다(`class Document(Base, TimestampMixin)`). 클래스 이름에 `Mixin`을 붙이는 건 "다른 클래스와 섞어 쓰라고 만든 클래스"라는 뜻을 드러내는 관례다.
-- `datetime.utcnow`는 파이썬 3.12부터 deprecated다. 지금 당장 에러는 아니지만 `DeprecationWarning`이 뜨고, 나중에 `lambda: datetime.now(datetime.UTC)` 같은 형태로 바꿔야 할 수 있다.
+- 처음엔 `datetime.utcnow`를 썼는데, 파이썬 3.12부터 deprecated라 `datetime.now`로 바꿨다. 다만 `datetime.now()`는 UTC가 아니라 **서버의 로컬 시간대** 기준이라는 점은 알아두는 게 좋다 — 서버 시간대가 바뀌거나 여러 지역에 서버를 두게 되면 `created_at` 값 해석이 꼬일 수 있어서, 나중에 UTC로 통일하고 싶으면 `lambda: datetime.now(datetime.UTC)`처럼 타임존을 명시하는 방법도 있다.
 
-### `models/documents.py` — 실제 테이블 3개
+### 실제 테이블 — `models/org.py`, `models/document.py`
+
+처음엔 `models/documents.py` 하나에 `Department`/`Document`/`DocumentVersion`만 넣었는데, 이후 "부서·사용자"와 "문서"로 파일을 나누고 `User` 모델과 업무 로직(권한, 보안 등급, 색인 상태)을 추가했다.
+
+`models/org.py` — 부서와 사용자:
+
+```python
+from __future__ import annotations
+from sqlalchemy import ForeignKey, String
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from app.models.base import Base, TimestampMixin
+
+# 보안 등급을 숫자 크기로도 비교할 수 있게 매핑
+CLEARANCE: dict[str, int] = {"일반": 1, "3급": 2, "대외비": 3}
+
+class Department(Base, TimestampMixin):
+    __tablename__ = "departments"
+    id: Mapped[str] = mapped_column(String(10), primary_key=True)
+    name: Mapped[str] = mapped_column(String(50), unique=True)
+    users: Mapped[list["User"]] = relationship(back_populates="dept")
+    documents: Mapped[list["Document"]] = relationship(back_populates="dept")
+
+class User(Base, TimestampMixin):
+    __tablename__ = "users"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    emp_no: Mapped[str] = mapped_column(String(16), unique=True, index=True)
+    name: Mapped[str] = mapped_column(String(50))
+    dept_id: Mapped[str] = mapped_column(ForeignKey("departments.id"))
+    role: Mapped[str] = mapped_column(String(10))
+    clearance: Mapped[str] = mapped_column(String(10))
+
+    dept: Mapped["Department"] = relationship(back_populates="users")
+    documents: Mapped[list["Document"]] = relationship(back_populates="owner")
+
+    # 보안등급을 숫자로 변환 (모르는 값이면 가장 낮은 1로 취급)
+    @property
+    def clearance_level(self) -> int:
+        return CLEARANCE.get(self.clearance, 1)
+
+    # 팀장·관리자에게만 승인 권한 부여
+    @property
+    def can_approve(self) -> bool:
+        return self.role in {"팀장", "관리자"}
+```
+
+`models/document.py` — 문서와 문서 버전:
 
 ```python
 from __future__ import annotations
@@ -328,64 +369,106 @@ from sqlalchemy import ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base, TimestampMixin
 
-class Department(Base, TimestampMixin):
-    __tablename__ = "departments"
-    id: Mapped[str] = mapped_column(String(20), primary_key=True)
-    name: Mapped[str] = mapped_column(String(100), unique=True)
-    documents: Mapped[list["Document"]] = relationship(back_populates="department")
-
 class Document(Base, TimestampMixin):
     __tablename__ = "documents"
-    id: Mapped[str] = mapped_column(String(30), primary_key=True)
-    title: Mapped[str] = mapped_column(String(200), index=True)
+    id: Mapped[str] = mapped_column(String(20), primary_key=True)  # 자연키
+    title: Mapped[str] = mapped_column(String(200))
     dept_id: Mapped[str] = mapped_column(ForeignKey("departments.id"), index=True)
-    security_level: Mapped[str] = mapped_column(String(20), default="일반", index=True)
-    department: Mapped[Department] = relationship(back_populates="documents")
-    versions: Mapped[list["DocumentVersion"]] = relationship(back_populates="document", cascade="all, delete-orphan")
+    security_level: Mapped[str] = mapped_column(String(10), index=True)
+    owner_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
+
+    dept: Mapped["Department"] = relationship(back_populates="documents")
+    owner: Mapped["User | None"] = relationship(back_populates="documents")
+    versions: Mapped[list["DocumentVersion"]] = relationship(
+        back_populates="document",
+        order_by="DocumentVersion.version",
+    )
+
+    # 여러 버전 중 지금 "현행"인 것만 골라준다
+    @property
+    def current(self) -> "DocumentVersion | None":
+        for v in self.versions:
+            if v.status == "현행":
+                return v
+        return None
 
 class DocumentVersion(Base, TimestampMixin):
     __tablename__ = "document_versions"
-    __table_args__ = (UniqueConstraint("doc_id", "version", name="uq_document_version"),)
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    doc_id: Mapped[str] = mapped_column(ForeignKey("documents.id"), index=True)
-    version: Mapped[str] = mapped_column(String(20))
-    status: Mapped[str] = mapped_column(String(20), default="현행", index=True)
-    valid_date: Mapped[date | None]
-    file_path: Mapped[str] = mapped_column(String(500))
-    page_count: Mapped[int] = mapped_column(default=0)
-    document: Mapped[Document] = relationship(back_populates="versions")
+    __table_args__ = (UniqueConstraint("doc_id", "version", name="uq_doc_version"),)
 
-# Department 1:N Document
+    id: Mapped[int] = mapped_column(primary_key=True)
+    doc_id: Mapped[str] = mapped_column(ForeignKey("documents.id"), index=True)
+    version: Mapped[str] = mapped_column(String(10))
+    status: Mapped[str] = mapped_column(String(10))
+
+    effective_from: Mapped[date]
+    expires_at: Mapped[date | None]
+
+    file_path: Mapped[str | None] = mapped_column(String(300))  # 파일은 디스크에, DB엔 경로만
+    file_format: Mapped[str] = mapped_column(String(10))
+
+    # 색인(파싱/임베딩) 관련 필드
+    chunk_count: Mapped[int] = mapped_column(default=0)
+    embed_model: Mapped[str | None] = mapped_column(String(50))
+    index_status: Mapped[str] = mapped_column(String(10), default="대기")
+    index_progress: Mapped[int] = mapped_column(default=0)
+    indexed_at: Mapped[date | None]
+
+    document: Mapped["Document"] = relationship(back_populates="versions")
+
+    @property
+    def period(self) -> str:
+        if self.expires_at is None:
+            return f"{self.effective_from} ~"
+        return f"{self.effective_from} ~ {self.expires_at}"
+
+    # 현행이면서 색인까지 끝난 버전만 검색 결과로 내보내도 된다고 판단
+    @property
+    def is_searchable(self) -> bool:
+        return self.status == "현행" and self.index_status == "완료"
+
+# Department 1:N User, Department 1:N Document
+# User 1:N Document (owner)
 # Document 1:N DocumentVersion
 ```
 
-- `relationship(back_populates=...)`으로 양쪽 클래스에서 서로를 오갈 수 있게 연결한다. `document.department`로 부서에 접근하고, `department.documents`로 그 부서의 문서 목록에 접근하는 식이다. 두 클래스에 각각 선언해야 하고, `back_populates`에 넘기는 문자열은 **상대편 클래스에서 자기 자신을 가리키는 속성 이름**이어야 한다.
-- `cascade="all, delete-orphan"`: `Document`가 삭제되면 그 문서에 딸린 `DocumentVersion`들도 같이 삭제된다.
-- `UniqueConstraint("doc_id", "version", ...)`: 같은 문서(`doc_id`)에 같은 버전(`version`)이 중복 저장되지 않도록 두 컬럼을 묶어서 유니크 제약을 건다(각 컬럼을 따로 unique로 걸면 안 되는 경우).
-- `Mapped[date | None]`처럼 컬럼 전용 옵션(`String(길이)` 등)이 필요 없으면 `mapped_column()` 없이 타입 힌트만으로도 컬럼이 만들어진다.
+- `relationship(back_populates=...)`으로 양쪽 클래스에서 서로를 오갈 수 있게 연결한다. 두 클래스에 각각 선언해야 하고, `back_populates`에 넘기는 문자열은 **상대편 클래스에서 자기 자신을 가리키는 속성 이름**이어야 한다.
+- `owner: Mapped["User | None"]`처럼 옵션 관계(문서에 담당자가 없을 수도 있음)는 `| None`으로 표시한다. `ForeignKey`도 `owner_id: Mapped[int | None]`으로 NULL을 허용해둬야 짝이 맞는다.
+- `@property`로 만든 `clearance_level`, `can_approve`, `current`, `period`, `is_searchable`은 전부 **DB 컬럼이 아니라 파이썬에서만 계산되는 값**이다. 매번 SQL로 계산하기보다, 이미 로드된 객체의 속성들을 조합해서 판단하는 업무 로직을 모델에 바로 붙여둔 것이다.
+- `UniqueConstraint("doc_id", "version", ...)`: 같은 문서(`doc_id`)에 같은 버전(`version`)이 중복 저장되지 않도록 두 컬럼을 묶어서 유니크 제약을 건다.
 
 ### 모델을 한곳에 모으기 — `models/__init__.py`
 
 ```python
 from app.models.base import Base, TimestampMixin
-from app.models.documents import Department, Document, DocumentVersion
+from app.models.document import Document, DocumentVersion
+from app.models.org import CLEARANCE, Department, User
 
-__all__ = "Base", "TimestampMixin", "Department", "Document", "DocumentVersion"
+__all__ = [
+    "Base",
+    "TimestampMixin",
+    "Department",
+    "User",
+    "Document",
+    "DocumentVersion",
+    "CLEARANCE",
+]
 ```
 
-여기서 `documents.py`의 모델들을 import해두는 게 핵심이다 — SQLAlchemy는 어떤 모델 클래스가 실제로 "import돼서 파이썬에 로드된 적 있는" 것만 `Base.metadata`에 등록한다. `init_db.py`가 `app.models`를 import할 때 이 `__init__.py`가 실행되면서 `Department`/`Document`/`DocumentVersion`이 전부 로드되고, 그래야 다음 단계의 `create_all()`이 세 테이블을 다 만들어준다.
+여기서 `document.py`/`org.py`의 모델들을 import해두는 게 핵심이다 — SQLAlchemy는 어떤 모델 클래스가 실제로 "import돼서 파이썬에 로드된 적 있는" 것만 `Base.metadata`에 등록한다. `init_db.py`가 `app.models`를 import할 때 이 `__init__.py`가 실행되면서 네 모델이 전부 로드되고, 그래야 다음 단계의 `create_all()`이 네 테이블을 다 만들어준다.
 
 `__all__`은 `from app.models import *`(와일드카드 import)를 할 때 뭘 내보낼지 정하는 목록이다. 여기 이름을 빠뜨리거나(`Document`가 빠져있던 실수) 오타를 내면(`Base` 대신 `base`), 직접 이름을 콕 집어 import(`from app.models import Base`)하는 코드는 멀쩡히 동작하지만 `import *`를 쓰는 코드에서만 조용히 잘못된 값이 들어가는 버그가 된다 — 실습 중 겪은 오류다.
 
 ### 테이블 생성 — `db/init_db.py`
 
 ```python
+from __future__ import annotations
 from sqlalchemy import Engine
-from app.db.session import engine as default_engine
-from app.models import Base
+from app.db.session import get_engine
 
 def init_db(engine: Engine | None = None) -> None:
-    Base.metadata.create_all(engine or default_engine)
+    from app.models import Base
+    Base.metadata.create_all(engine or get_engine())
 
 def main() -> None:
     init_db()
@@ -403,6 +486,8 @@ python -m app.db.init_db
 `-m`은 파일 경로가 아니라 점(`.`)으로 구분한 모듈 경로를 받는다. `python -m app.db.init_db.py`처럼 확장자 `.py`를 붙이면, `init_db`(모듈)에 또 `py`라는 서브모듈이 있는 것처럼 찾으려다 실패한다(`__path__ attribute not found` 에러) — 실습 중 겪은 오류다.
 
 `Base.metadata.create_all(engine)`은 아직 없는 테이블만 새로 만들고, 이미 있는 테이블은 건드리지 않는다. `engine: Engine | None = None` 매개변수를 열어둔 이유는, 테스트 코드에서 실제 DB 대신 임시 엔진(예: 인메모리 SQLite)을 넣어 검증할 수 있게 하기 위해서다.
+
+**루트(`hanwha-agent`)에서 실행하려면 `PYTHONPATH`가 필요하다.** `backend/` 안으로 `cd`하지 않고 실행하면 `app` 패키지가 안 보여서 `ModuleNotFoundError: No module named 'app'`이 난다. 이때 PowerShell에서 `set PYTHONPATH=backend`처럼 cmd 문법을 그대로 쓰면 안 된다 — PowerShell의 `set`(`Set-Variable`의 별칭)은 `VAR=VALUE` 형태를 통째로 하나의 변수 이름으로 인식해버려서, 환경변수는 전혀 설정되지 않고 `PYTHONPATH=backend`라는 이상한 이름의 PowerShell 변수만 하나 생긴다. PowerShell에서 환경변수를 설정하는 올바른 문법은 `$env:PYTHONPATH = "backend"`다. 또는 그냥 `cd backend`부터 하고 실행하는 게 더 간단하다.
 
 ### 폴더 구조
 
@@ -428,7 +513,8 @@ hanwha-agent/
             models/
                 __init__.py
                 base.py
-                documents.py
+                org.py
+                document.py
     sandbox/
         w2/
             ...
@@ -652,4 +738,49 @@ with SessionLocal() as session:
 
 `session.scalars(stmt)`는 결과를 ORM 객체(`Document` 인스턴스)로 바로 돌려주고, `session.scalar(stmt)`(단수)는 결과가 값 하나(집계 결과 등)일 때 그 값 자체를 돌려준다.
 
-참고: sandbox/w2/day04/01.sqlalchemy와sqlite.ipynb, sandbox/w2/day04/sqlalchemy_practice/02_session.py, sandbox/w2/day04/demo_models.py, sandbox/w2/day04/01_model.py, sandbox/w2/day04/02_session_crud.py, sandbox/w2/day04/03_select.py, backend/app/db/session.py, backend/app/db/init_db.py, backend/app/models/
+## 4. JOIN
+
+두 테이블을 하나로 묶어서 조회하는 것이 JOIN이다. `documents.dept_id`와 `departments.id`처럼 외래키로 연결된 테이블 사이에서, "문서 id와 그 문서가 속한 부서명을 같이 보고 싶다"처럼 한쪽 테이블만으로는 답할 수 없는 질문에 쓴다.
+
+### `.join(모델.관계속성)` — relationship을 그대로 넘기기
+
+`demo_models.py`에는 이미 `Document.department`(다대일)와 `Department.documents`(일대다) 관계가 `relationship(back_populates=...)`로 정의돼 있다. `.join()`에 이 관계 속성을 그대로 넘기면, SQLAlchemy가 `ForeignKey`를 보고 ON 조건을 알아서 만들어준다.
+
+```python
+from sqlalchemy import select
+from demo_models import Department, Document, SessionLocal, seed, reset_db
+
+with SessionLocal() as session:
+    stmt = select(Document.id, Department.name).join(Document.department)
+    print(stmt)
+    # SELECT documents.id, departments.name
+    # FROM documents JOIN departments ON departments.id = documents.dept_id
+
+    for doc_id, dept_name in session.execute(stmt):
+        print(doc_id, dept_name)
+
+    # join 뒤에도 where는 그대로 붙는다 — 부서명으로 필터링
+    stmt = (
+        select(Document.id, Department.name)
+        .join(Document.department)
+        .where(Department.name == "보안팀")
+    )
+```
+
+`select(Document.id, Department.name)`처럼 두 테이블의 열을 함께 지정했을 때, `session.execute(stmt)`는 `session.scalars(stmt)`(단일 열/객체용)가 아니라 각 행이 `(doc_id, dept_name)` 튜플로 묶여 나온다. `session.scalars()`를 쓰면 첫 번째 열만 뽑혀서 두 번째 열(`Department.name`)이 사라진다 — 열이 두 개 이상이면 `execute()`를 써야 한다.
+
+### `.join(대상모델, ON조건)` — 관계 없이 직접 지정
+
+`relationship`이 정의돼 있지 않거나 조인 조건을 명시적으로 쓰고 싶을 때는 아래처럼 직접 지정할 수도 있다. 결과는 위 방식과 동일하다.
+
+```python
+stmt = select(Document.id, Department.name).join(
+    Department, Document.dept_id == Department.id
+)
+```
+
+### 실습 — `04_excrud.py`
+
+"문서의 id와 부서명을 모두 출력", "보안팀의 문서 id와 부서명을 출력" 두 문제를 위 두 가지 방식으로 풀어본 파일이다. `reset_db()` + `seed()`로 매번 같은 데이터에서 시작해서, `session.execute(stmt)`로 결과를 순회하며 `(doc_id, dept_name)` 튜플을 언패킹해 출력한다.
+
+참고: sandbox/w2/day04/01.sqlalchemy와sqlite.ipynb, sandbox/w2/day04/sqlalchemy_practice/02_session.py, sandbox/w2/day04/demo_models.py, sandbox/w2/day04/01_model.py, sandbox/w2/day04/02_session_crud.py, sandbox/w2/day04/03_select.py, sandbox/w2/day04/04_excrud.py, backend/app/db/session.py, backend/app/db/init_db.py, backend/app/models/

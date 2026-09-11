@@ -1,50 +1,56 @@
+# 엔진과 세션을 만드는 곳
 from __future__ import annotations
 
-import os
 from collections.abc import Iterator
 from contextlib import contextmanager
 
-from sqlalchemy import Engine, create_engine, event, text
+from sqlalchemy import Engine, create_engine, event
 from sqlalchemy.orm import Session, sessionmaker
 
-# DB 경로
-# - 환경변수 참고, 없으면 app.db 사용
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./app.db")
+from app.core.config import get_settings
 
-# 엔진 생성
-def build_engine() -> Engine:
+# 만든 엔진을 URL 별로 담아두는 상자
+_ENGINES: dict[str, Engine] = {}
 
-    # 연결 확인 옵션
-    options: dict = {"pool_pre_ping": True}
+# 엔진 하나 만들어주는 함수
+def get_engine(url: str | None = None) -> Engine:
 
-    # sqlite라면
-    if DATABASE_URL.startswith("sqlite"):
-        # 스레드 체크 옵션 추가
-        options["connect_args"] = {"check_same_thread": False}
-    # 엔진 생성 
-    # - 옵션 풀어서 주기
-    db_engine = create_engine(DATABASE_URL, **options)
-    # sqlite라면
-    if DATABASE_URL.startswith("sqlite"):
-        # 연결 시작 시 
-        @event.listens_for(db_engine, "connect")
-        # 외래키 검사 설정 추가
-        def enable_foreign_keys(dbapi_connection, _connection_record) -> None:
+    # 환경변수에서 DB URL 가져와 적용
+    # 이미지 만들어진 엔진이면 만들어진 것 리턴하며 종료
+    resolved = url or get_settings().database_url
+    if resolved in _ENGINES:
+        return _ENGINES[resolved]
+
+    # SQLite 전용 설정 
+    connect_args: dict[str, object] = {}
+    is_sqlite = resolved.startswith("sqlite")
+    if is_sqlite:
+        connect_args["check_same_thread"] = False
+
+    # 엔진 생성
+    engine = create_engine(resolved, connect_args=connect_args)
+
+    # SQLite 설정 추가
+    if is_sqlite:
+        
+        @event.listens_for(engine, "connect")
+        def _enable_sqlite_foreign_keys(dbapi_connection, connection_record) -> None:  # noqa: ANN001
             cursor = dbapi_connection.cursor()
             cursor.execute("PRAGMA foreign_keys=ON")
             cursor.close()
 
-    return db_engine
+    # 새로 만들어진 엔진 저장하며 리턴
+    _ENGINES[resolved] = engine
+    return engine
 
-# 엔진 공장 생성
-# - 애플리케이션 전체에서 하나만 만들면 된다.
-engine = build_engine()
-SessionLocal = sessionmaker(bind=engine, expire_on_commit=False)
+# 세션 공장 생성 함수
+def get_sessionmaker(engine: Engine | None = None) -> sessionmaker[Session]:
+    return sessionmaker(bind=engine or get_engine(), expire_on_commit=False)
 
-# 편의 함수 
+# 세션 생성 및 scope 편의 메서드
 @contextmanager
 def session_scope() -> Iterator[Session]:
-    session = SessionLocal()
+    session = get_sessionmaker()()
     try:
         yield session
         session.commit()
@@ -53,13 +59,3 @@ def session_scope() -> Iterator[Session]:
         raise
     finally:
         session.close()
-
-def main() -> None:
-    print(f"DB URL : {engine.url}")
-    print(f"DB 종류 : {engine.dialect.name}")
-
-    with session_scope() as session:
-        print(f"select 결과 : {session.execute(text("SELECT 1")).scalar_one()}")
-
-if __name__ == "__main__":
-    main()
