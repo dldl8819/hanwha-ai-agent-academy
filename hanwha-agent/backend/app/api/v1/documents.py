@@ -11,6 +11,7 @@ router = APIRouter(
     tags=["documents"]
 )
 
+
 # DB 사용 전, 임시 데이터 추가 (나중에 없앨 예정)
 _DOCS: list[dict] = [
     {
@@ -90,3 +91,23 @@ def get_document(doc_id: str) -> dict:
             return doc
 
     raise NotFound(f"문서를 찾지 못했습니다.: {doc_id}")
+
+# 잘못된 예시
+'''
+@router.get("/list")
+def get_list(dept_id=None, security_level=None, status=None, q=None):
+    sql = "SELECT * FROM documents WHERE 1=1"
+    if dept_id:
+        sql += f" AND dept_id = '{dept_id}'"
+    if security_level:
+        sql += f" AND security_level = '{security_level}'"
+    if status:
+        sql += f" AND status = '{status}'"
+    if q:
+        sql += f" AND q = '{q}'"
+    # ...
+    session.execute(sql)
+    # DB 접속해서 쿼리문 실행
+    # 돌려받은 데이터를 활용해서 화면에 전달하는 로직 처리 등
+    # 데이터 리턴
+'''

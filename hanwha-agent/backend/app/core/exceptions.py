@@ -22,9 +22,9 @@ class PermissionDenied(AgentError):
     code = "permission_denied"
 
 # 입력값이 규칙에 맞지 않다.
-class ValidationError(AgentError):
+class ValidationFailed(AgentError):
     status_code = 422
-    code = "validation_error"
+    code = "validation_failed"
 
 # 입력가드에 걸림 - 길이 초과, 인젝션 의심 등
 class GuardTripped(AgentError):
