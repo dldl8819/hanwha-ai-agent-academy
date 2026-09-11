@@ -9,6 +9,7 @@ class Settings(BaseSettings):
         extra="ignore",
         case_sensitive=False # APP_MODE 든 app_mode든 같은 것으로 보게 설정 
     )
+    
     # --- 실행 모드 ---
     # 기본값 mock으로 설정
     # mock이 아니면 live로 설정
@@ -25,6 +26,7 @@ class Settings(BaseSettings):
     # 실습 - 환경변수 값 추가 top_k, upstage_api_key 
     top_k: int = Field(default=3, ge=1, le=20)
     upstage_api_key: SecretStr | None = None 
+
     # live 모드인지 확인 
     # settings.app_mode == "live"
     # settings.is_live => True/False

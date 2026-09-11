@@ -1,13 +1,15 @@
 from __future__ import annotations
-
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from datetime import datetime
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
+# 모든 모델의 부모
 class Base(DeclarativeBase):
     pass
 
-# DB 테이블 또는 공통 기반 클래스 정의
-# 생성일, 수정일은 거의 모든 테이블에 공통적으로 들어가는 컬럼
+# 모든 모델에 등록일, 수정일 상속으로 처리 (부모)
 class TimestampMixin:
-    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(default=datetime.now)
+    updated_at: Mapped[datetime] = mapped_column(
+        default=datetime.now,
+        onupdate=datetime.now,   
+    )

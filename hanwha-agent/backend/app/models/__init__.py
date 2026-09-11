@@ -1,5 +1,13 @@
-# 필요한 클래스와 함수 가져오기
 from app.models.base import Base, TimestampMixin
-from app.models.documents import Department, Document, DocumentVersion
+from app.models.document import Document, DocumentVersion
+from app.models.org import CLEARANCE, Department, User
 
-__all__ = "Base", "TimestampMixin", "Department", "Document", "DocumentVersion"
+__all__ = [
+    "Base",
+    "TimestampMixin",
+    "Department",
+    "User",
+    "Document",
+    "DocumentVersion",
+    "CLEARANCE",
+]
