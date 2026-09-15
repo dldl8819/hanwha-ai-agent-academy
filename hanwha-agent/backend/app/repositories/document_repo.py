@@ -32,6 +32,7 @@ def list_documents(
         stmt = stmt.where(DocumentVersion.status == status)
     if q:
         stmt = stmt.where(
+            # ilike 대소문자 구분 X
             or_(Document.title.ilike(f"%{q}%"), Document.id.ilike(f"%{q}%"))
         )
     # - 즉시 로딩
