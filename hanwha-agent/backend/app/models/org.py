@@ -22,12 +22,12 @@ class User(Base, TimestampMixin):
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    emp_no: Mapped[str] = mapped_column(String(16), unique=True, index=True)
+    emp_no: Mapped[str] = mapped_column(String(16), unique=True, index=True) # 사원 번호 (로그인)
     name: Mapped[str] = mapped_column(String(50))
     dept_id: Mapped[str] = mapped_column(ForeignKey("departments.id"))
     role: Mapped[str] = mapped_column(String(10))       
     clearance: Mapped[str] = mapped_column(String(10))  
-    password_hash: Mapped[str] = mapped_column(String(100), default="")
+    password_hash: Mapped[str] = mapped_column(String(100), default="") # 비밀번호 (로그인)
 
     dept: Mapped["Department"] = relationship(back_populates="users")
     documents: Mapped[list["Document"]] = relationship(back_populates="owner")

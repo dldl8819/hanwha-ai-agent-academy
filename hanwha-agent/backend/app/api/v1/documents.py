@@ -19,7 +19,7 @@ router = APIRouter(
 # 파일 업로드될 경로 지정
 UPLOAD_DIR = Path("uploads")
 
-ALLOWED_EXTS = {".docx", ".pdf"}
+ALLOWED_EXTS = {".docx", ".pdf", ".txt"}
 
 
 # DB 사용 전, 임시 데이터 추가 (나중에 없앨 예정)

@@ -17,7 +17,7 @@ def get_engine(url: str | None = None) -> Engine:
 
     # 환경변수에서 DB URL 가져와 적용
     # 이미지 만들어진 엔진이면 만들어진 것 리턴하며 종료
-    resolved = url or get_settings().database_url
+    resolved = url or get_settings().database_url 
     if resolved in _ENGINES:
         return _ENGINES[resolved]
 
