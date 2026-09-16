@@ -52,7 +52,7 @@ hanwha-agent/
 | day08 | 2026-09-11 | 스키마, 파일 업로드, 검색 키워드 확장 | [w2/day05](sandbox/w2/day05) | [네이버](https://blog.naver.com/dldl8819/224410931250) |
 | day09 | 2026-09-14 | async/await, Streamlit, UI 킷, 비밀번호 해싱 | [w3/day01](sandbox/w3/day01) | [네이버](https://blog.naver.com/dldl8819/224412170740) |
 | day10 | 2026-09-15 | 로그인, 화면-API 연동, Docker, PostgreSQL | [w3/day02](sandbox/w3/day02) | [네이버](https://blog.naver.com/dldl8819/224412738524) |
-| day11 | 2026-09-16 | Alembic, AI-Native 아키텍처, 포트와 어댑터, 토큰과 과금 | [w3/day03](sandbox/w3/day03) | 작성 중 |
+| day11 | 2026-09-16 | PostgreSQL 전환, Alembic, 포트와 어댑터, 토큰 과금 | [w3/day03](sandbox/w3/day03) | [네이버](https://blog.naver.com/dldl8819/224413930997) |
 
 ## 실행
 
