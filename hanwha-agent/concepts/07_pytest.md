@@ -8,12 +8,33 @@
 python -m pip install pytest
 ```
 
+## TDD (Test-Driven Development)
+
+**테스트 코드가 실패하는 코드는 만들지 않겠다**는 개발 방식이다. 기능을 먼저 만들고 나중에 테스트를 붙이는 대신, 무엇이 맞는 동작인지를 테스트로 먼저 적어두고 그 테스트를 통과시키는 방향으로 구현한다. 그러면 "이 코드가 무엇을 보장하는지"가 테스트 파일에 남는다.
+
 ## 이름 규칙이 곧 등록이다
 
 pytest에는 "이 테스트를 실행하라"고 별도로 등록하는 곳이 없다. 대신 이름 규칙을 따르기만 하면 pytest가 알아서 찾아서 실행해준다.
 
-- 파일명: `test_*.py`
-- 함수명: `test`로 시작
+- 파일명: `test_`로 시작하거나 `_test`로 끝난다 (`test_config.py`)
+- 함수명: `test_`로 시작한다 (`def test_xxxx():`)
+- 클래스명: `Test`로 시작한다
+
+규칙을 벗어난 이름은 **에러 없이 그냥 실행되지 않는다.**
+
+```python
+def clean_title(raw):
+    return raw.strip()
+
+def test_앞뒤_공백을_지운다():
+    assert clean_title("     앞뒤 공백이 있는 문자열    ") == "앞뒤 공백이 있는 문자열"
+
+# test_ 가 안 붙어 있어서 실행되지 않는다
+def 빈_제목이면_빈_문자열():
+    assert clean_title("   ") == ""
+```
+
+함수 이름은 한글로 써도 된다. 실행 결과에 이름이 그대로 찍혀서 무엇을 검사하는 테스트인지 읽기 쉬워진다.
 
 ```python
 def add(a, b):
@@ -59,4 +80,42 @@ day02/__init__.py 없음  → sys.path에 day02가 들어감 → from calculator
 
 `sandbox/day0N/`처럼 스크립트와 테스트를 나란히 두고 pytest로 그 파일만 바로 돌리는 구조에서는 `__init__.py`를 넣지 않는 게 맞다. 반대로 `backend/app/...`처럼 실제로 다른 모듈에서 import해서 쓰는 패키지에는 `__init__.py`가 필요하다.
 
-참고: sandbox/w2/day02/04.pytest기초.ipynb, sandbox/w2/day02/test_calculator.py, sandbox/w2/day02/calculator.py
+## 테스트 파일은 한곳에 모은다
+
+날짜 폴더마다 흩어 두면 나중에 전체를 한 번에 돌리기 어려워서, 테스트 실습용 파일은 `sandbox/pytest/`로 모았다.
+
+```bash
+pytest sandbox/pytest -v
+```
+
+## 실습 중 만난 이슈: 테스트에서 `app` 모듈을 못 찾는다
+
+프로젝트 설정을 검사하는 테스트를 만들었더니 수집 단계에서 바로 멈췄다.
+
+```python
+# sandbox/pytest/test_import_fail.py
+from app.core.config import get_settings
+
+def test_설정_불러오기():
+    assert get_settings().app_mode == "mock"
+```
+
+```text
+ERROR collecting sandbox/pytest/test_import_fail.py
+E   ModuleNotFoundError: No module named 'app'
+!!!!!!! Interrupted: 1 error during collection !!!!!!!
+```
+
+`app` 패키지는 `backend/` 아래에 있는데, `pytest sandbox/pytest`로 실행하면 `sandbox/pytest`만 `sys.path`에 들어가서 `backend`는 검색 경로에 없다. 위 "`__init__.py`가 있으면 import 경로가 바뀐다"와 같은 뿌리의 문제로, **pytest가 어떤 폴더를 `sys.path`에 넣는지**가 핵심이다.
+
+또 하나 눈여겨볼 것은 실패 방식이다. 테스트 하나가 실패한 게 아니라 **수집 단계에서 중단(Interrupted)돼서 나머지 테스트도 실행되지 않았다.** import 오류는 개별 테스트 실패와 다르게 파일 전체를 못 읽게 만든다.
+
+해결은 `backend`를 검색 경로에 알려주는 것이고, 보통 프로젝트 루트의 `pyproject.toml`에 pytest 설정을 넣어 처리한다.
+
+```toml
+[tool.pytest.ini_options]
+pythonpath = ["backend"]
+testpaths = ["sandbox/pytest"]
+```
+
+참고: sandbox/pytest/, sandbox/w2/day02/04.pytest기초.ipynb, sandbox/w2/day02/test_calculator.py
