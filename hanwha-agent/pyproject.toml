@@ -1,0 +1,8 @@
+[tool.pytest.ini_options]
+# backend 를 모듈 검색 경로에 넣는다
+# - 이게 없으면 테스트에서 from app.core.config import ... 가 ModuleNotFoundError 로 실패한다
+pythonpath = ["backend"]
+
+# 인자 없이 pytest 만 쳤을 때 찾아볼 폴더
+# - 없는 폴더를 적으면 경고가 뜨고, pytest 가 현재 폴더 전체를 훑어 옛 연습 파일까지 수집한다
+testpaths = ["backend/tests"]
