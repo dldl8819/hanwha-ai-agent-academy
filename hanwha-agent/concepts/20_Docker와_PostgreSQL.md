@@ -192,4 +192,102 @@ docker compose up -d --force-recreate postgres
 
 포트 충돌(다른 프로그램이 5432 사용)이나 윈도우 예약 포트 범위 문제는 아니었고, 컨테이너가 다시 켜질 때 포트 연결만 빠진 경우였다.
 
+## SQLite에서 PostgreSQL로 전환
+
+컨테이너가 뜬 것을 확인했으면 프로젝트가 바라보는 DB를 바꾼다. 코드는 고치지 않고 `.env`의 URL 한 줄만 바꾼다.
+
+```bash
+# DATABASE_URL=sqlite:///./app.db
+DATABASE_URL=postgresql+psycopg://agent:agent@localhost:5432/agent
+```
+
+### 캐시를 비워야 바뀐 값이 반영된다
+
+```python
+from app.db import session as db_session
+from app.db.session import get_settings, get_engine
+
+get_settings.cache_clear()      # @lru_cache 로 붙잡고 있던 Settings 버리기
+db_session._ENGINES.clear()     # URL 별로 만들어 둔 엔진 캐시 비우기
+
+settings = get_settings()
+engine = get_engine()
+print("settings.database_url :", settings.database_url)
+print("drivername :", engine.url.drivername)   # psycopg
+print("host / port :", engine.url.host, engine.url.port)
+print("database   :", engine.url.database)
+```
+
+`get_settings`는 `@lru_cache`가 붙어 있어서 한 번 읽은 `.env` 값을 계속 돌려주고, `get_engine`은 `_ENGINES` 딕셔너리에 URL별로 엔진을 담아둔다([[11_SQLAlchemy]]). 둘 다 **프로세스가 살아 있는 동안 유지되는 캐시**라서, 노트북 커널을 켜 둔 채 `.env`만 바꾸면 예전 SQLite 설정이 그대로 쓰인다. 서버를 다시 띄우면 자연히 해결되지만, 노트북에서는 이렇게 캐시를 직접 비워야 한다.
+
+### SQLite 전용 분기가 안 타는지 확인
+
+```python
+print("SQLite 전용 분기 :",
+      "탔다" if settings.database_url.startswith("sqlite") else "타지 않았다")
+```
+
+`session.py`에는 SQLite일 때만 타는 설정이 두 군데 있다.
+
+```python
+is_sqlite = resolved.startswith("sqlite")
+if is_sqlite:
+    connect_args["check_same_thread"] = False   # sqlite3 드라이버 전용 인자
+...
+if is_sqlite:
+    @event.listens_for(engine, "connect")
+    def _enable_sqlite_foreign_keys(dbapi_connection, connection_record) -> None:
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")   # SQLite 전용 SQL
+```
+
+`check_same_thread`는 파이썬 `sqlite3` 드라이버에만 있는 인자라 psycopg에 넘기면 접속이 실패하고, `PRAGMA`는 SQLite 전용 SQL이라 PostgreSQL에서는 문법 오류가 난다. PostgreSQL은 외래 키를 원래 항상 검사하므로 이 설정 자체가 필요 없다. URL 앞부분으로 갈라놨기 때문에 URL만 바꾸면 분기도 알아서 맞춰진다.
+
+### 표 만들고 시드 넣기
+
+```python
+from app.db.init_db import init_db
+from app.db.seed import seed_all, count_rows
+from app.db.session import session_scope
+
+init_db()      # Base.metadata.create_all() — 없는 표만 만든다
+
+with engine.connect() as conn:
+    tables = conn.execute(text(
+        "SELECT table_name FROM information_schema.tables "
+        "WHERE table_schema = 'public' ORDER BY table_name")).scalars().all()
+print("init_db() 후 표 목록:", " · ".join(tables))
+
+print("seed_all()      →", seed_all())
+print("seed_all() 다시 →", seed_all())      # 멱등성 검사
+
+with session_scope() as s:
+    print("count_rows()    →", count_rows(s))
+```
+
+빈 PostgreSQL에 SQLite에서 쓰던 것과 같은 표가 생기고, 시드 데이터가 들어간다. **같은 코드가 DB만 바뀌어 그대로 도는 것**이 SQLAlchemy를 쓰는 이유다.
+
+`seed_all()`을 두 번 불러 같은 결과가 나오는지 보는 것은 **멱등성** 확인이다. `_seed`는 맨 앞에서 문서 개수를 세고, 0이 아니면 아무것도 넣지 않고 현재 개수만 돌려준다.
+
+```python
+if session.scalar(select(func.count()).select_from(Document)):
+    return count_rows(session)
+```
+
+이 검사가 없으면 노트북 셀을 다시 실행할 때마다 같은 데이터가 중복으로 쌓인다.
+
+### 노트북에서 `app` 모듈을 못 찾을 때
+
+```text
+ModuleNotFoundError: No module named 'app'
+```
+
+`os.chdir(ROOT)`로 작업 폴더만 옮기면 상대경로는 맞춰지지만, `app` 패키지는 `backend/` 아래에 있어서 모듈 검색 경로에는 안 들어간다. 노트북 맨 위에서 `backend`를 `sys.path`에 넣어야 한다([[18_로그인과_인증]]의 로그인 노트북은 이 처리가 되어 있다).
+
+```python
+BACKEND = ROOT / "backend"
+if str(BACKEND) not in sys.path:
+    sys.path.insert(0, str(BACKEND))
+```
+
 참고: hanwha-agent/docker-compose.yml(커밋 제외), sandbox/w3/day02/00.postgresql.ipynb
