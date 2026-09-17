@@ -55,7 +55,7 @@ hanwha-agent/
 | day09 | 2026-09-14 | async/await, Streamlit, UI 킷, 비밀번호 해싱 | [w3/day01](sandbox/w3/day01) | [네이버](https://blog.naver.com/dldl8819/224412170740) |
 | day10 | 2026-09-15 | 로그인, 화면-API 연동, Docker, PostgreSQL | [w3/day02](sandbox/w3/day02) | [네이버](https://blog.naver.com/dldl8819/224412738524) |
 | day11 | 2026-09-16 | PostgreSQL 전환, Alembic, 포트와 어댑터, 토큰 과금 | [w3/day03](sandbox/w3/day03) | [네이버](https://blog.naver.com/dldl8819/224413930997) |
-| day12 | 2026-09-17 | Claude API 호출, 어댑터 구현, 프롬프트 설계, 구조화 출력 | [w3/day04](sandbox/w3/day04) | 작성 중 |
+| day12 | 2026-09-17 | Claude API 호출, 어댑터 구현, 프롬프트 설계, 구조화 출력 | [w3/day04](sandbox/w3/day04) | [네이버](https://blog.naver.com/dldl8819/224415144340) |
 
 ## 실행
 
