@@ -23,9 +23,21 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///./app.db"
     debug: bool = False
     allow_external_send: bool = False
-    # 실습 - 환경변수 값 추가 top_k, upstage_api_key 
+    # 실습 - 환경변수 값 추가 top_k, upstage_api_key
     top_k: int = Field(default=3, ge=1, le=20)
-    upstage_api_key: SecretStr | None = None 
+    upstage_api_key: SecretStr | None = None
+
+    # --- 관측 langfuse ---
+    # 기본값을 False 로 둔다
+    # - 관측은 있으면 좋은 것이고, 없어서 앱이 멈춰서는 안 된다
+    # - 키를 안 넣은 사람도, langfuse 를 설치하지 않은 사람도 그대로 실행된다
+    langfuse_enabled: bool = False
+    # 셀프 호스팅 기본 주소. 클라우드면 https://cloud.langfuse.com (리전별로 주소가 다르다)
+    langfuse_host: str = "http://localhost:3000"
+    # public key 는 pk-lf-... 로 시작하고 화면에서 다시 볼 수 있어 SecretStr 로 두지 않았다
+    langfuse_public_key: str | None = None
+    # secret key 는 sk-lf-... 로 시작한다. 로그·print 에 실수로 찍히지 않게 SecretStr 로 감싼다
+    langfuse_secret_key: SecretStr | None = None
 
     # live 모드인지 확인 
     # settings.app_mode == "live"
