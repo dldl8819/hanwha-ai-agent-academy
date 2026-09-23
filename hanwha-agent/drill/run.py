@@ -20,6 +20,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 # 윈도우 콘솔 기본 코드페이지(cp949)로는 — 같은 글자에서 터진다
@@ -194,7 +195,11 @@ def 검증(문제id: str) -> dict:
     머리말 = 시작.split(MARKER)[0]
     본문 = "\n\n\n".join(_원본조각(meta).values())
 
-    tmp = WORK / "_검증" / 문제id
+    # 작업 폴더가 아니라 시스템 임시 폴더에 푼다
+    # - 답안을 쓰는 drill/작업/ 안에 검증 찌꺼기가 섞이면 어디를 고쳐야 할지 헷갈린다
+    tmp = Path(tempfile.gettempdir()) / "drill_검증" / 문제id
+    if tmp.exists():
+        shutil.rmtree(tmp)
     tmp.mkdir(parents=True, exist_ok=True)
     (tmp / "시작.py").write_text(머리말 + MARKER + "\n\n" + 본문 + "\n", encoding="utf-8")
     shutil.copy2(PROBLEMS / 문제id / "test_문제.py", tmp / "test_문제.py")
