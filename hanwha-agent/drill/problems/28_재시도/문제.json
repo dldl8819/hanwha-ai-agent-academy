@@ -1,0 +1,9 @@
+{
+  "제목": "재시도 힌트와 폴백 — 세 번 실패해도 화면은 안 깨진다",
+  "개념": "concepts/2_AI-Native_아키텍처_테스트/28_가드와_재시도_폴백.md",
+  "유형": "코드",
+  "정답": {
+    "파일": "backend/app/services/chat_service.py",
+    "함수": ["FALLBACK_ANSWER", "_hint_from", "_fallback"]
+  }
+}

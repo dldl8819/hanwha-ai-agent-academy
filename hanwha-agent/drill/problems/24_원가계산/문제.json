@@ -1,0 +1,9 @@
+{
+  "제목": "원가 계산 — 출력이 입력보다 다섯 배 비싸다",
+  "개념": "concepts/2_AI-Native_아키텍처_테스트/24_API_토큰과_과금.md",
+  "유형": "코드",
+  "정답": {
+    "파일": "backend/app/integrations/llm_claude.py",
+    "함수": ["PRICING", "USD_KRW", "estimate_cost_krw"]
+  }
+}

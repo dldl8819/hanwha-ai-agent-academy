@@ -1,0 +1,9 @@
+{
+  "제목": "비밀번호 해싱 — 되돌릴 수 없어야 한다",
+  "개념": "concepts/1_AI서비스_백엔드_실무/17_비밀번호_해싱_bcrypt.md",
+  "유형": "코드",
+  "정답": {
+    "파일": "backend/app/core/security.py",
+    "함수": ["hash_password", "verify_password"]
+  }
+}

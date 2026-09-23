@@ -1,0 +1,9 @@
+{
+  "제목": "JSON 꺼내기 — 모델은 설명을 덧붙인다",
+  "개념": "concepts/2_AI-Native_아키텍처_테스트/27_구조화_출력.md",
+  "유형": "코드",
+  "정답": {
+    "파일": "backend/app/integrations/llm_claude.py",
+    "함수": ["_extract_json"]
+  }
+}

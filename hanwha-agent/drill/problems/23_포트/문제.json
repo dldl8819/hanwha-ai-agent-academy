@@ -1,0 +1,9 @@
+{
+  "제목": "포트와 어댑터 — 서비스가 구현체를 모르게 한다",
+  "개념": "concepts/2_AI-Native_아키텍처_테스트/23_포트와_어댑터.md",
+  "유형": "코드",
+  "정답": {
+    "파일": "backend/app/integrations/ports.py",
+    "함수": ["LLMResult", "LLMPort"]
+  }
+}

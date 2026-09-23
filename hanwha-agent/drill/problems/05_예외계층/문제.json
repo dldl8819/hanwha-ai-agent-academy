@@ -1,0 +1,9 @@
+{
+  "제목": "예외 계층 — 한 번 잡아서 HTTP 로 번역한다",
+  "개념": "concepts/1_AI서비스_백엔드_실무/05_예외_계층_설계.md",
+  "유형": "코드",
+  "정답": {
+    "파일": "backend/app/core/exceptions.py",
+    "함수": ["AgentError", "NotFound", "GuardTripped", "RateLimited", "AuthFailed"]
+  }
+}

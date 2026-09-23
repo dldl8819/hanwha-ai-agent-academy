@@ -1,0 +1,9 @@
+{
+  "제목": "요청·응답 스키마 — 제약을 타입에 박아 넣는다",
+  "개념": "concepts/1_AI서비스_백엔드_실무/03_Pydantic.md",
+  "유형": "코드",
+  "정답": {
+    "파일": "backend/app/schemas/chat.py",
+    "함수": ["DOC_ID", "ChatRequest", "AnswerSource", "AnswerOut"]
+  }
+}
