@@ -14,6 +14,7 @@ from app.db.session import session_scope
 from app.models import Run, UsageLog
 from app.schemas.chat import AnswerOut, AskOut
 from app.services.ids import next_run_id
+from app.agent.chain import build_result_chain
 
 log = get_logger(__name__)
 
@@ -85,6 +86,11 @@ def ask(*, question: str, run_id: str | None = None, user_id: int = 1) -> AskOut
     # 2. 어댑터 한 개.
     llm = factory.get_llm()
 
+    # 체인 생성
+    chain = build_result_chain(llm, contexts=NO_CONTEXTS, user=DEFAULT_USER).with_retry(
+        stop_after_attempt=2
+    )
+
     # 함수 안에서 import 하는 이유
     # - langfuse_client 는 factory 를 거치지 않는 어댑터라, 최상단에서 import 하면
     #   test_layers.py 의 "services 는 app.integrations.factory 만 본다" 규칙에 걸린다
@@ -116,6 +122,7 @@ def ask(*, question: str, run_id: str | None = None, user_id: int = 1) -> AskOut
 
     # 4. 여기서부터가 한 건의 트레이스
     # - 관측이 꺼져 있으면 trace() 는 아무것도 안 하고 with 블록만 그대로 지나간다
+    # - langfuse 감싸서 llm 요청
     with trace(
         "ask",
         run_id=run_id,
@@ -132,7 +139,13 @@ def ask(*, question: str, run_id: str | None = None, user_id: int = 1) -> AskOut
             #   프롬프트 준비
             prompt = q if not hint else f"{q}\n\n[직전 응답의 문제] {hint}\n출력 형식을 지켜 다시 답해 주세요."
             #   llm에 질문 던지기
-            result = llm.answer(question=prompt, contexts=NO_CONTEXTS, user=DEFAULT_USER)
+            #   - 체인으로 변경
+            # result = llm.answer(question=prompt, contexts=NO_CONTEXTS, user=DEFAULT_USER)
+            result = chain.invoke(
+                {
+                    "question": prompt
+                }
+            )
 
             # 검증 "전에" 사용량을 남긴다
             # - 여기가 핵심이다. 응답이 규칙을 어겨 버려지더라도 그 호출의 토큰은 이미 과금됐다
