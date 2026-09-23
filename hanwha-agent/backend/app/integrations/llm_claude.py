@@ -127,7 +127,7 @@ class ClaudeLLM:
     # 근거 문서를 기반으로 질문에 답하는 함수
     # - ports.py 의 LLMPort.answer 구현체
     # - 인자 이름이 LLMPort 와 정확히 같아야 한다
-    #   : runtime_checkable 은 메서드 이름만 보므로, 인자 이름이 달라도 isinstance 는 통과한다
+    #   : runtime_checkable 은 메서드 이름만 보니까, 인자 이름이 달라도 isinstance 는 통과한다
     def answer(self, *, question: str, contexts: list[dict], user: dict) -> LLMResult:
         # question : 사용자 질문
         # contexts : 근거 문서 목록
