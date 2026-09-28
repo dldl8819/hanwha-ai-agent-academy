@@ -106,6 +106,7 @@ hanwha-agent/
 | day14 | 2026-09-21 | LangChain·LangGraph 개요, LangFuse 관측, 실행 기록 테이블 | [w4/day01](sandbox/w4/day01) | [네이버](https://blog.naver.com/dldl8819/224420075761) |
 | day15 | 2026-09-22 | 사용량·원가 기록, RAG 개요, LangChain 기초, 체인 합성 | [w4/day02](sandbox/w4/day02) | [네이버](https://blog.naver.com/dldl8819/224420079457) |
 | day16 | 2026-09-23 | LangChain 앱 적용, 비동기와 스트리밍, 재시도·폴백 | [w4/day03](sandbox/w4/day03) | [네이버](https://blog.naver.com/dldl8819/224421103051) |
+| day17 | 2026-09-28 | 문서 파싱, PDF·DOCX 파서, 표 추출과 마크다운 | [w5/day01](sandbox/w5/day01) | [네이버](https://blog.naver.com/dldl8819/224425026465) |
 
 ## 실행
 
