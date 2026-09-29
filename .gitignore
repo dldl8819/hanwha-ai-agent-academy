@@ -25,3 +25,5 @@ dldl8819.github.io/
 hanwha-agent/docker-compose.yml
 # drill 연습 답안 — 매번 새로 쓰는 게 요점이라 커밋하지 않는다
 hanwha-agent/drill/작업/
+# 임베딩 모델 가중치 — 4.5GB. 받는 법은 sandbox/w5/day02/download_models.py 에
+models/
