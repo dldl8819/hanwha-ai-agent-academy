@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     # 실습 - 환경변수 값 추가 top_k, upstage_api_key
     top_k: int = Field(default=3, ge=1, le=20)
     upstage_api_key: SecretStr | None = None
+    upstage_base_url: str = "https://api.upstage.ai/v1"
+    upstage_parse_model: str = "document-parse"
+    upstage_parse_ocr: str = "auto"  
 
     # --- 관측 langfuse ---
     # 기본값을 False 로 둔다
