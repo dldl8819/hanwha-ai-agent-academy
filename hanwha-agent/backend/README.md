@@ -203,7 +203,7 @@ mock / live 분기 처리 X
 | `test_chat_golden.py` | 11 | 응답이 조건을 만족하는지 |
 | `test_exceptions.py` | 9 | 예외가 HTTP 로 옳게 번역되는지 |
 | `test_guards.py` | 6 | 가드가 막아야 할 걸 막는지 |
-| `test_healthy.py` | 3 | API 가 실제로 응답하는지 |
+| `test_health.py` | 3 | API 가 실제로 응답하는지 |
 | `test_core_config.py` | 2 | 설정이 캐시되는지 |
 
 골든셋은 응답 문자열을 그대로 비교하지 않고 **조건**으로 판정합니다 — 있어야 할 낱말, 없어야 할 낱말, 근거 건수, 재시도 횟수. `factory.get_llm` 만 가짜로 갈아끼워서 돈이 들지 않고 인터넷 없이도 돕니다.
