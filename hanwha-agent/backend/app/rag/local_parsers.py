@@ -63,7 +63,7 @@ def _table_to_markdown(headers: list[str], rows: list[list[str]]) -> str:
     return '\n'.join([head, sep, *body])
 
 
-# HWPX 파싱해서 ParsedDoc 으로 리턴하는 함수
+# HWPX 파싱해서 ParsedDoc으로 리턴하는 함수
 def parse_hwpx(path: Path) -> ParsedDoc:
     import re
     import zipfile
@@ -99,6 +99,28 @@ def parse_hwpx(path: Path) -> ParsedDoc:
                     blocks.append(ParsedBlock("조항", path.stem, text))
     return ParsedDoc(blocks=blocks, page_count=1, table_count=tables)
 
+# XSLX 파싱해 ParsedDoc으로 리턴하는 함수 
+def parse_xlsx(path: Path) -> ParsedDoc:
+    from openpyxl import load_workbook
+
+    wb = load_workbook(str(path), data_only=True)
+    blocks: list[ParsedBlock] = [] 
+
+    for ws in wb.worksheets:
+        rows = [
+            ["" if c is None else str(c) for c in row]
+            for row in ws.iter_rows(values_only=True)
+            if any(c is not None for c in row)
+        ]
+        if not rows:
+            continue
+        blocks.append(
+            ParsedBlock("표", ws.title, _table_to_markdown(rows[0], rows[1:]))
+        )
+
+    return ParsedDoc(blocks=blocks, page_count=len(wb.worksheets), table_count=len(blocks))
+
+
 _CONVERT_HINT = {
     '.hwp': '한글에서 열고 [다른 이름으로 저장] → HWPX 또는 PDF 로 내보내세요. 구 .hwp 는 한컴 독자 바이너리라 열지 않고는 읽을 방법이 없습니다', 
     '.doc': 'Word 에서 열고 .docx 로 저장하세요', 
@@ -127,3 +149,4 @@ def parse_local(path: str | Path) -> ParsedDoc | None:
     if not doc.blocks:
         raise ValidationFailed(f'문서에서 글자를 찾지 못했습니다: {p.name}', detail='스캔본(이미지)일 수 있습니다. .env 의 UPSTAGE_PARSE_OCR 를 force 로 두고 실동작 모드로 다시 적재해 보세요')
     return doc
+
