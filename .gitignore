@@ -37,3 +37,6 @@ hanwha-agent/review/_site/
 
 # 참고용으로 클론한 외부 저장소 (자체 .git 을 갖고 있다)
 im-not-ai/
+
+# 노트북이 병합 셀 실습용으로 만드는 파일 — 셀을 돌리면 다시 생긴다
+hanwha-agent/sandbox/w5/day04/merged.xlsx
