@@ -13,6 +13,7 @@ from core import router, session
 from ui.theme import inject_css
 from views import login as login_view
 from views import documents as documents_view 
+from views import chat as chat_view
 
 # 가장 먼저 부르는 st 함수여야 한다. 최상위에 배치
 st.set_page_config(
@@ -26,7 +27,7 @@ inject_css()  # css 적용
 # 사이드바 내비 항목
 # - 메뉴 목록
 NAV: list[tuple[str, str | None]] = [
-    ("AI 업무 도우미", None),
+    ("AI 업무 도우미", "chat"),
     ("문서 관리", "documents"),
     ("승인함", None),
     ("운영 대시보드", None),
@@ -46,7 +47,9 @@ def render_sidebar() -> None:
     if user is not None:
         # 사용자 이름과 부서명을 화면에 그리기
         st.sidebar.markdown(
-            '<div class="ag-user"><div>'
+            '<div class="ag-user">'
+            f'<div class="ag-avatar">{html.escape(user["name"][:1])}</div>'
+            '<div>'
             f'<div class="ag-user-name">{html.escape(user["name"])}</div>'
             f'<div class="ag-user-role">{html.escape(user["dept"])}</div>'
             '</div></div>',
@@ -84,8 +87,10 @@ def main() -> None:
 
     # 현재 페이지 키 가져오기 
     page = router.current_page()
-    # 현재 페이지 키값이 documents 
-    if page == "documents":
+    # 현재 페이지 키값이 chat, documents 
+    if page == "chat":
+        chat_view.render()
+    elif page == "documents":
         documents_view.render()
     else:
         st.info("아직 만들지 않은 화면입니다.")
