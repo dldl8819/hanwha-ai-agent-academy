@@ -229,7 +229,7 @@ def client():
 `with`로 감싸면 [[10_FastAPI]]의 `lifespan`이 실제로 실행된다. `yield`를 쓰는 fixture는 테스트가 끝난 뒤 뒷정리까지 해준다.
 
 ```python
-# backend/tests/test_healthy.py
+# backend/tests/test_health.py
 def test_health_returns_ok(client) -> None:
     r = client.get("/health")
     assert r.status_code == 200
