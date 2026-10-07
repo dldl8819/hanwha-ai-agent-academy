@@ -5,10 +5,10 @@ from datetime import date
 
 # 사용자/화면에 전달해도 되는 정보들만 모아서 클래스로 구성 
 class DocumentOut(BaseModel):
-    doc_id: str
+    doc_id: str = Field(examples=["DOC-HR-014"])
     title: str
     dept: str
-    version: str
+    version: str = Field(examples=["v2.0"])
     security_level: Literal["일반", "3급", "대외비"]
     file_format: Literal["docx", "pdf", "txt"]
     status: Literal["현행", "만료"]
@@ -29,3 +29,23 @@ class DocumentCreateOut(BaseModel):
     created: bool = Field(
         description="문서 자체가 이번에 새로 생겼으면 True, 버전만 더했으면 False"
     )
+    # 파싱·청킹은 응답을 보낸 뒤에 돌아간다.
+    # - 그래서 업로드 응답에는 결과가 없고 "어느 작업을 보면 되는지"만 들어간다.
+    job_id: str = Field(examples=["38c9f31b"])
+
+
+# 업로드 작업 하나의 진행 상태
+# - 화면이 1초에 한 번 이 모양을 받아 진행률과 단계 표시를 다시 그린다.
+class JobOut(BaseModel):
+    job_id: str = Field(examples=["38c9f31b"])
+    doc_id: str = Field(examples=["DOC-FI-009"])
+    version: str = Field(examples=["v1.4"])
+    status: Literal["대기", "진행 중", "완료", "실패"]
+    progress: int = Field(default=0, ge=0, le=100)
+    # [{name, state: 'ok'|'no'|'wait'|'todo', time?}]
+    # - ui/status.py 의 steps() 가 그대로 받는 모양이라 dict 로 둔다.
+    steps: list[dict]
+    chunk_count: int = 0
+    # 성공하면 요약문("조항 단위 17 + 표 단위 2 = 19 청크"),
+    # 실패하면 예외 메시지가 들어오는 한 칸이다.
+    message: str = ""
