@@ -13,3 +13,7 @@ class TimestampMixin:
         default=datetime.now,
         onupdate=datetime.now,   
     )
+
+# 임베딩 벡터의 차원 지정
+# - chunks.embedding 컬럼과 settings.embed_dim 설정값이 참고할 값
+EMBED_DIM = 1024
