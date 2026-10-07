@@ -3,7 +3,7 @@
 # - Alembic 의 autogenerate 는 Base.metadata 에 등록된 테이블만 본다.
 #   여기서 import 하지 않은 모델은 리비전 파일에 아예 나오지 않는다
 from app.models.base import Base, TimestampMixin
-from app.models.document import Document, DocumentVersion
+from app.models.document import Chunk, Document, DocumentVersion
 from app.models.org import CLEARANCE, Department, User
 from app.models.run import Run, RunStep
 from app.models.usage import UsageLog
@@ -15,6 +15,7 @@ __all__ = [
     "User",
     "Document",
     "DocumentVersion",
+    "Chunk",
     "Run",
     "RunStep",
     "UsageLog",
