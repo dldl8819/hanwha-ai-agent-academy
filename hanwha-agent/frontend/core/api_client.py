@@ -19,6 +19,12 @@ def _request(
     *,
     params: dict | None = None, # 쿼리스트링 ?a=10
     json: dict | None = None,   # 요청 본문으로 보낼 dict 타입 데이터
+    # 파일 업로드용 두 칸
+    # - 파일은 json 으로 못 보낸다. multipart/form-data 로 나가야 하고
+    #   그 형식에서는 텍스트 칸(data)과 파일 칸(files)이 따로 실린다.
+    # - json 과 같이 쓰면 안 된다. 본문 형식이 하나뿐이라 뒤에 오는 쪽이 이긴다.
+    data: dict | None = None,   # 멀티파트 텍스트 필드
+    files: dict | None = None,  # 멀티파트 파일 필드
     emp_no: str | None = None,  # 사번. X-Emp-No 헤더 값
 ) -> Any:
 
@@ -34,7 +40,8 @@ def _request(
     try:
         # 백엔드에 요청
         response = httpx2.request(
-            method, url, params=clean_params, json=json, headers=headers, timeout=TIMEOUT
+            method, url, params=clean_params, json=json, data=data, files=files,
+            headers=headers, timeout=TIMEOUT
         )
     except httpx2.ConnectError as exc:
         raise ApiError(
@@ -111,3 +118,26 @@ def stats(*, emp_no: str | None = None) -> dict:
 def ask(question: str) -> dict:
     # question: 사용자가 입력창에 입력한 질문
     return _request("POST", "/api/v1/chat/messages", json={"question": question})
+# 파일 하나를 백엔드로 보내 업로드를 요청하고 작업 번호를 받는 함수
+# - files 의 값은 (파일명, 바이트) 튜플이다. 파일명을 빼고 바이트만 주면
+#   서버가 확장자를 알 수 없어 ALLOWED_EXTS 검사에서 걸린다.
+# - effective_from 은 문자열로 보낸다. 날짜 변환은 FastAPI 쪽 Form(date) 이 한다.
+def upload_document(
+    *, doc_id: str, title: str, dept_id: str, security_level: str,
+    version: str, effective_from: str, filename: str, content: bytes,
+    emp_no: str | None = None,
+) -> dict:
+    return _request(
+        "POST", "/api/v1/documents",
+        data={
+            "doc_id": doc_id, "title": title, "dept_id": dept_id,
+            "security_level": security_level, "version": version,
+            "effective_from": effective_from,
+        },
+        files={"file": (filename, content)},
+        emp_no=emp_no,
+    )
+
+# 업로드 작업 하나의 진행 상태 요청
+def get_job(job_id: str, *, emp_no: str | None = None) -> dict:
+    return _request("GET", f"/api/v1/documents/jobs/{job_id}", emp_no=emp_no)

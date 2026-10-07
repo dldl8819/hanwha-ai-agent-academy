@@ -4,7 +4,7 @@ from html import escape
 
 import streamlit as st
 
-from core import api_client, session
+from core import api_client, router, session
 from ui.badge import badge_html
 from ui.metric import metrics
 from ui.table import table
@@ -22,7 +22,7 @@ LEVELS = ["전체", "일반", "3급", "대외비"]
 
 STATUSES = ["전체", "현행", "만료"]
 
-HEADERS = ["문서 ID", "문서명", "버전", "시행 ~ 만료", "상태", "부서", "등급", "색인"]
+HEADERS = ["문서 ID", "문서명", "버전", "시행 ~ 만료", "상태", "부서", "등급", "검색 반영"]
 
 ALIGNS = ["ag-nowrap", "", "", "ag-nowrap", "", "", "", "ag-nowrap"]
 
@@ -41,7 +41,7 @@ def _metrics_row() -> None:
          "tone": "ok"},
         {"label": "만료", "value": counts["expired"], "delta": "지난 판",
          "tone": "no"},
-        {"label": "재임베딩", "value": counts["reindexing"], "delta": "색인을 다시 만드는 중",
+        {"label": "재임베딩", "value": counts["reindexing"], "delta": "검색내용에 다시 반영하는 중",
          "tone": "wait"},
     ])
 
@@ -102,7 +102,7 @@ def render() -> None:
     filters = _filter_row() # 필터
 
     if st.button("새 문서 업로드"): # 업로드 버튼 생성
-        st.info("업로드 화면은 추후에 만듭니다.") # 버튼 클릭 시 정보 출력
+        router.go("document_upload") # 업로드 화면으로 전환
     # 로딩 화면
     with st.spinner("문서를 불러오는 중입니다..."):
         try:
