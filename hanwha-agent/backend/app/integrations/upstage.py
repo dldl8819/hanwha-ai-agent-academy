@@ -56,7 +56,7 @@ class UpstageParser:
         if not p.exists():
             # return 하면 예외 객체가 ParsedDoc 자리에 돌아가고,
             # 부르는 쪽에서 doc.blocks 를 볼 때 AttributeError 가 난다.
-            raise ExternalServiceError(f"파일을 찾을 수 없습니다. : {path}")
+            raise ExternalServiceError(f"파일을 찾을 수 없습니다: {path}")
         return _to_doc(p, _post(p))
 
 # 파일을 멀티파트로 보내고 응답을 JSON으로 리턴
