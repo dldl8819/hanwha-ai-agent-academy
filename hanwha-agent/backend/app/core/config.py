@@ -2,6 +2,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field, SecretStr
 from functools import lru_cache
 
+from app.models.base import EMBED_DIM
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -12,14 +14,16 @@ class Settings(BaseSettings):
     
     # --- 실행 모드 ---
     # 기본값 mock으로 설정
-    # mock이 아니면 live로 설정
+    # - mock이 아니면 live로 설정
     app_mode: str = Field(default="mock", pattern=r"^(mock|live)$")
+    # --- LLM --------------------------------------------------------
     anthropic_api_key: SecretStr | None = None
     llm_model: str = "claude-haiku-4-5"
     max_tokens: int = Field(default=400, ge=1, le=8192)
     temperature: float = Field(default=0.0, ge=0.0, le=1.0)
     daily_call_limit: int = Field(default=200, ge=1)
     max_input_chars: int = Field(default=200, ge=1)
+    # --- DB ------------------------------
     database_url: str = "sqlite:///./app.db"
     debug: bool = False
     allow_external_send: bool = False
@@ -29,6 +33,12 @@ class Settings(BaseSettings):
     upstage_base_url: str = "https://api.upstage.ai/v1"
     upstage_parse_model: str = "document-parse"
     upstage_parse_ocr: str = "auto"  
+    # --- embedding ---------------------------------------------
+    embed_provider: str = Field(default="local", pattern=r"^(local|upstage)")
+    # embed model default 설정
+    embed_model_dir: str = "models/bge-m3"
+    embed_dim: int = EMBED_DIM
+    upstage_embed_model: str | None = None
 
     # --- 관측 langfuse ---
     # 기본값을 False 로 둔다
