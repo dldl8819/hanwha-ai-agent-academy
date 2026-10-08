@@ -117,6 +117,12 @@ hanwha-agent/
 | day15 | 2026-09-22 | 사용량·원가 기록, RAG 개요, LangChain 기초, 체인 합성 | [w4/day02](sandbox/w4/day02) | [네이버](https://blog.naver.com/dldl8819/224420079457) |
 | day16 | 2026-09-23 | LangChain 앱 적용, 비동기와 스트리밍, 재시도·폴백 | [w4/day03](sandbox/w4/day03) | [네이버](https://blog.naver.com/dldl8819/224421103051) |
 | day17 | 2026-09-28 | 문서 파싱, PDF·DOCX 파서, 표 추출과 마크다운 | [w5/day01](sandbox/w5/day01) | [네이버](https://blog.naver.com/dldl8819/224425026465) |
+| day18 | 2026-09-29 | 기술 스택 지도, 임베딩 모델, HWPX 파싱 | [w5/day02](sandbox/w5/day02) | [네이버](https://blog.naver.com/dldl8819/224426136498) |
+| day19 | 2026-09-30 | 채팅 화면, 임베딩과 코사인 유사도, 청킹 규칙 | [w5/day03](sandbox/w5/day03) | [네이버](https://blog.naver.com/dldl8819/224427325203) |
+| day20 | 2026-10-01 | 파서 진입점, 엑셀·PPT 파싱, 스캔본과 상용 파서 | [w5/day04](sandbox/w5/day04) | [네이버](https://blog.naver.com/dldl8819/224429616696) |
+| day21 | 2026-10-02 | 파서 숙제 해결, 로컬 파서와 상용 파서 비교, OCR | [w5/day05](sandbox/w5/day05) | [네이버](https://blog.naver.com/dldl8819/224429617172) |
+| day22 | 2026-10-06 | 청크 저장, 업로드 파이프라인, 배경 작업과 작업 번호 | [w6/day01](sandbox/w6/day01) | [네이버](https://blog.naver.com/dldl8819/224433779775) |
+| day23 | 2026-10-07 | 임베딩 적재, 거리 연산자와 색인, 벡터 검색 | [w6/day02](sandbox/w6/day02) | [네이버](https://blog.naver.com/dldl8819/224434895235) |
 
 ## 실행
 
