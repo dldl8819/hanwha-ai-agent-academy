@@ -32,10 +32,8 @@ hanwha-agent/drill/작업/
 # humanize-korean 스킬이 cwd 에 만드는 작업 폴더
 _workspace/
 
-# 폰용 복습 페이지 — 만드는 법(review/만들기.py)만 저장소에 둔다
-hanwha-agent/review/복습.html
-hanwha-agent/review/복습카드_옵시디언.md
-hanwha-agent/review/_site/
+# 복습 페이지 생성물 — 만드는 법(review/아티팩트.py)만 저장소에 둔다
+hanwha-agent/review/복습_아티팩트.html
 
 # 참고용으로 클론한 외부 저장소 (자체 .git 을 갖고 있다)
 im-not-ai/
