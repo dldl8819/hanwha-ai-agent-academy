@@ -44,7 +44,16 @@ class ParsedDoc:
     page_count: int = 0                                      # 페이지 수. 페이지 개념이 없는 docx형식은 1로 둔다 .
     table_count: int = 0                                     # 표를 몇개 알아봤는지. 
 
-# 파서 어댑터가 지켜야할 규칙 : 로컬 파서 또는 파싱 API 를 사용해도 아래 모양만 맞춰주면, 같은 코드로 사용 가능하게 해줌 
+# 파서 어댑터가 지켜야할 규칙 
+# - 로컬 파서 또는 파싱 API 를 사용해도 아래 모양만 맞춰주면, 같은 코드로 사용 가능하게 해줌 
 @runtime_checkable
 class ParserPort(Protocol):
     def parse(self, path: str) -> ParsedDoc: ... 
+
+# --- embedding ---
+# 임베딩 어댑터가 지켜야할 규칙
+@runtime_checkable
+class EmbedderPort(Protocol):
+    dim: int 
+    def embed_documents(self, texts: list[str]) -> list[list[float]]: ...
+    def embed_query(self, text: str) -> list[float]: ...
