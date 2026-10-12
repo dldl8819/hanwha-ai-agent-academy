@@ -15,6 +15,7 @@ from views import login as login_view
 from views import documents as documents_view 
 from views import chat as chat_view
 from views import document_upload as document_upload_view
+from views import document_detail as document_detail_view
 
 # 가장 먼저 부르는 st 함수여야 한다. 최상위에 배치
 st.set_page_config(
@@ -95,6 +96,8 @@ def main() -> None:
         documents_view.render()
     elif page == "document_upload":
         document_upload_view.render()
+    elif page == "document_detail":
+        document_detail_view.render()
     else:
         st.info("아직 만들지 않은 화면입니다.")
 

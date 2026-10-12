@@ -94,8 +94,8 @@ def _table(documents: list[dict]) -> None:
 # 실제 화면 구현 함수
 def render() -> None:
     st.title("문서 관리")
-    st.caption("상태 필터가 「전체」라 지난 판까지 함께 보입니다. "
-               "「현행」으로 좁히면 현재 유효한 최신본만 남습니다.")
+    st.caption("상태 필터의 기본값이 「현행」입니다. 지금 유효한 최신본만 보입니다. "
+               "「전체」로 바꾸면 지난 판까지 함께 보입니다.")
 
     _metrics_row() # 지표 그리는 함수
 
@@ -119,3 +119,20 @@ def render() -> None:
 
     st.caption(f"{len(documents)}건")
     _table(documents)
+    _open_detail(documents) # 표에서 문서 하나 골라 상세로
+
+
+# 상세로 넘어갈 문서 고르기
+# - 표 안의 행을 직접 누르게 하려면 표를 st.dataframe 으로 바꿔야 하는데,
+#   그러면 지금 쓰는 배지와 정렬이 전부 사라진다. 선택 상자를 따로 두는 쪽을 택했다.
+def _open_detail(documents: list[dict]) -> None:
+    # 같은 문서의 여러 판이 목록에 함께 뜨므로 doc_id 를 한 번씩만 남긴다.
+    doc_ids = list(dict.fromkeys(document["doc_id"] for document in documents))
+    left, right = st.columns([3, 1])
+    with left:
+        chosen = st.selectbox("상세 페이지를 볼 문서", doc_ids, key="f_detail_doc")
+    with right:
+        st.write("")   # 선택 상자의 라벨 높이만큼 버튼을 내린다
+        if st.button("버전 이력 보기", use_container_width=True):
+            st.session_state["selected_doc"] = chosen
+            router.go("document_detail")

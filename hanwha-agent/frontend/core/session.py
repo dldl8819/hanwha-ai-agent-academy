@@ -8,7 +8,7 @@ DEFAULTS: dict = {
     "user": None,
     "f_dept": "전체",
     "f_level": "전체",
-    "f_status": "전체",
+    "f_status": "현행",
     "f_q": "",
 }
 
