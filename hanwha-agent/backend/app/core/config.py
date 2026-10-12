@@ -27,16 +27,15 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///./app.db"
     debug: bool = False
     allow_external_send: bool = False
-    # 실습 - 환경변수 값 추가 top_k, upstage_api_key
-    top_k: int = Field(default=3, ge=1, le=20)
+    # 실습 - 환경변수 값 추가 upstage_api_key
     upstage_api_key: SecretStr | None = None
     upstage_base_url: str = "https://api.upstage.ai/v1"
     upstage_parse_model: str = "document-parse"
     upstage_parse_ocr: str = "auto"  
     # --- embedding ---------------------------------------------
     embed_provider: str = Field(default="local", pattern=r"^(local|upstage)")
-    # embed model default 설정
-    embed_model_dir: str = "models/bge-m3"
+    # 가중치는 저장소 바깥(프로젝트 루트의 ../models)에 둔다 — git 에 올리지 않는다
+    embed_model_dir: str = "../models/bge-m3"
     embed_dim: int = EMBED_DIM
     upstage_embed_model: str | None = None
 
