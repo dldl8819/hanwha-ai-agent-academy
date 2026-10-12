@@ -6,7 +6,7 @@
 """
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 from uuid import uuid4
 
 from app.core.exceptions import NotFound, ValidationFailed
@@ -109,6 +109,16 @@ def create_document(
                 "판 번호를 올려 다시 올려 주세요."
             )
 
+        # 새 버전을 넣기 전에 기존 현행을 만료로 내린다. 현행은 늘 하나다.
+        # - expires_at 은 새 판 시행일의 하루 전. 두 판의 유효 기간이 겹치지 않게 한다.
+        # - index_status 를 "보관" 으로 바꿔 is_searchable 이 False 가 되게 한다.
+        #   상태만 만료로 바꾸고 색인을 그대로 두면 검색에는 계속 걸린다.
+        for past in document.versions:
+            if past.status == "현행":
+                past.status = "만료"
+                past.expires_at = effective_from - timedelta(days=1)
+                past.index_status = "보관"
+
         # 문서 버전 저장
         document_repo.add_version(
             s,
@@ -130,6 +140,31 @@ def create_document(
             "file_path": file_path,
             "created": created,
         }
+
+
+# 문서 한 건의 판을 전부, 최신이 앞에 오도록 돌려준다
+def list_versions(*, doc_id: str) -> list[dict]:
+    with session_scope() as s:
+        document = document_repo.get_document(s, doc_id)
+        if document is None:
+            raise NotFound(f"문서를 찾을 수 없습니다: {doc_id}")
+        # 문자열 역순 정렬이다. v2.0 > v1.1 은 맞지만 v10.0 < v9.0 으로 뒤집힌다.
+        # 지금 재료는 한 자리라 드러나지 않는다.
+        return [
+            {
+                "version": v.version,
+                "status": v.status,
+                "effective_from": v.effective_from,
+                "expires_at": v.expires_at,
+                "chunk_count": v.chunk_count,
+                "embed_model": v.embed_model,
+                "index_status": v.index_status,
+                "indexed_at": v.indexed_at,
+                "searchable": v.is_searchable,
+                "period": v.period,
+            }
+            for v in sorted(document.versions, key=lambda v: v.version, reverse=True)
+        ]
 
 
 # 업로드된 파일 하나를 파싱 -> 청킹 -> 저장까지 이어주는 함수
@@ -257,6 +292,21 @@ def run_ingest_job(job_id: str) -> None:
             if st["state"] == "todo":
                 st["state"] = "no"
                 break
+
+
+# 이미 등록된 판 하나를 다시 적재한다 — 파일은 그대로 두고 다시 읽는다.
+# 파서나 청킹 규칙이 바뀌었을 때, 또는 임베딩이 중간에 끊겼을 때 쓴다.
+def start_reindex_job(*, doc_id: str, version: str) -> str:
+    with session_scope() as s:
+        document = document_repo.get_document(s, doc_id)
+        dv = next((v for v in document.versions if v.version == version), None) if document else None
+        if dv is None:
+            raise NotFound(f"해당 문서 버전을 찾을 수 없습니다: {doc_id} {version}")
+        path = dv.file_path or ""
+        # 먼저 "재임베딩" 으로 바꿔 둔다. 돌아가는 동안 화면이 그 상태를 읽는다.
+        dv.index_status = "재임베딩"
+        dv.index_progress = 0
+    return start_ingest_job(doc_id=doc_id, version=version, path=path)
 
 
 # 작업 하나의 진행 상태를 돌려주는 함수

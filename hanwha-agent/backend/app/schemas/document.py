@@ -18,6 +18,22 @@ class DocumentOut(BaseModel):
     index_status: Literal["대기", "재임베딩", "완료", "보관"] = "대기"
     index_progress: int = Field(default=0, ge=0, le=100)
 
+# 버전 목록 화면에 전달할 스키마
+# - 한 문서의 판들을 최신순으로 늘어놓을 때 쓴다.
+class VersionOut(BaseModel):
+    version: str = Field(examples=["v2.0"])
+    status: Literal["현행", "만료"]
+    effective_from: date
+    expires_at: date | None = None
+    chunk_count: int = 0
+    embed_model: str | None = None
+    index_status: Literal["대기", "재임베딩", "완료", "보관"] = "대기"
+    indexed_at: date | None = None
+    # is_searchable 은 모델의 property 다. 상태와 색인이 둘 다 맞아야 True.
+    searchable: bool = False
+    period: str = Field(examples=["2025-07-01 ~"])
+
+
 # 업로드 응답
 # - 무엇이 어디에 저장됐는지만 알려주는 객체
 class DocumentCreateOut(BaseModel):

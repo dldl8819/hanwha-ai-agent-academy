@@ -5,7 +5,7 @@ import shutil
 from datetime import date 
 from pathlib import Path
 
-from app.schemas.document import DocumentOut, DocumentCreateOut, JobOut
+from app.schemas.document import DocumentOut, DocumentCreateOut, JobOut, VersionOut
 from app.api.v1.deps import SettingsDep, LoggerDep
 from app.core.exceptions import NotFound, ValidationFailed
 from app.services import document_service
@@ -122,3 +122,20 @@ def read_job(job_id: str) -> dict:
 @router.get("/{doc_id}", response_model=DocumentOut)
 def get_document(doc_id: str) -> dict:
     return document_service.get_document(doc_id=doc_id)
+
+
+# 문서 한 건의 판 목록
+# - "/{doc_id}" 보다 아래에 있어도 된다. 경로 조각 수가 달라 겹치지 않는다.
+@router.get("/{doc_id}/versions", response_model=list[VersionOut])
+def list_versions(doc_id: str) -> list[dict]:
+    return document_service.list_versions(doc_id=doc_id)
+
+
+# 이미 올라간 판을 다시 적재한다. 파일을 다시 받지 않는다.
+# - 202 를 돌려준다. 받기는 했고 끝나지는 않았다는 뜻이다.
+#   업로드(201 Created)와 달리 새로 만들어지는 것이 없다.
+@router.post("/{doc_id}/versions/{version}/reindex", response_model=JobOut, status_code=202)
+def reindex_version(doc_id: str, version: str, background: BackgroundTasks) -> dict:
+    job_id = document_service.start_reindex_job(doc_id=doc_id, version=version)
+    background.add_task(document_service.run_ingest_job, job_id)
+    return document_service.get_job(job_id)

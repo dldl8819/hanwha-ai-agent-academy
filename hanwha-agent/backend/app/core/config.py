@@ -40,6 +40,13 @@ class Settings(BaseSettings):
     embed_dim: int = EMBED_DIM
     upstage_embed_model: str | None = None
 
+    # --- 검색 ---------------------------------------
+    # 임계값: 가장 가까운 근거가 이 점수에 못 미치면 '근거 부족'으로 본다.
+    #   벡터 검색은 맞는 답이 없어도 가장 가까운 것을 돌려준다([[60_벡터_검색]]).
+    #   그 사실을 숫자 하나로 가리는 자리라 값의 근거가 약하다는 점을 알고 쓴다.
+    retrieval_threshold: float = Field(default=0.55, ge=0.0, le=1.0)
+    retrieval_top_k: int = Field(default=12, ge=1, le=100)
+
     # --- 관측 langfuse ---
     # 기본값을 False 로 둔다
     # - 관측은 있으면 좋은 것이고, 없어서 앱이 멈춰서는 안 된다
