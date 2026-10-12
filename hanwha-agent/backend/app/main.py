@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 # from app.api.v1.documents import router as document_router
 # from app.api.v1.auth import router as auth_router
-from app.api.v1 import auth, chat, documents
+from app.api.v1 import auth, documents, chat, ops
 from app.core.exceptions import AgentError
 from contextlib import asynccontextmanager
 from app.core.logging import setup_logging
@@ -45,6 +45,11 @@ app.include_router(
 #   (include_router 의 첫 인자는 router 하나이고, 나머지는 prefix 같은 옵션 자리다)
 app.include_router(
     chat.router,
+    prefix="/api/v1"
+)
+
+app.include_router(
+    ops.router,
     prefix="/api/v1"
 )
 
