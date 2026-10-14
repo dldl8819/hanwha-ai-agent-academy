@@ -8,15 +8,13 @@
 ├── python-basic/     1주차 — 파이썬 기초
 │   └── workspace/
 │       ├── day01~day04/   일차별 실습 코드
-│       ├── concepts/      개념 단위 정리 노트
-│       └── blog/          네이버 블로그 포스팅(초안/최종)
+│       └── concepts/      개념 단위 정리 노트
 │
 └── hanwha-agent/     2주차 이후 — AI 에이전트 프로젝트
     ├── backend/          서버 로직 (FastAPI 기반)
     ├── frontend/         화면
     ├── sandbox/          주차/일차별(wN/dayNN) 연습 코드
-    ├── concepts/         개념 단위 정리 노트
-    └── blog/             네이버 블로그 포스팅(초안/최종)
+    └── concepts/         개념 단위 정리 노트
 ```
 
 ## 블로그 시리즈

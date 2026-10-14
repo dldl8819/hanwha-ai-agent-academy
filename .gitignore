@@ -12,10 +12,9 @@ uploads/
 .idea/
 HANDOFF.md
 Heifam.txt
-python-basic/workspace/blog/00_포스팅_가이드.md
-python-basic/workspace/blog/복붙용/
-hanwha-agent/blog/00_포스팅_가이드.md
-hanwha-agent/blog/복붙용/
+# 네이버 블로그 포스팅 — 공개하지 않는다 (로컬에만 둔다)
+hanwha-agent/blog/
+python-basic/workspace/blog/
 *.log
 *.db
 강사님/
