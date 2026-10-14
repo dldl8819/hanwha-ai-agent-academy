@@ -129,6 +129,8 @@ hanwha-agent/
 | day21 | 2026-10-02 | 파서 숙제 해결, 로컬 파서와 상용 파서 비교, OCR | [w5/day05](sandbox/w5/day05) | [네이버](https://blog.naver.com/dldl8819/224429617172) |
 | day22 | 2026-10-06 | 청크 저장, 업로드 파이프라인, 배경 작업과 작업 번호 | [w6/day01](sandbox/w6/day01) | [네이버](https://blog.naver.com/dldl8819/224433779775) |
 | day23 | 2026-10-07 | 임베딩 적재, 거리 연산자와 색인, 벡터 검색 | [w6/day02](sandbox/w6/day02) | [네이버](https://blog.naver.com/dldl8819/224434895235) |
+| day24 | 2026-10-08 | 문서 적재 정책, 현행 판 거르기, 검색 정책 | [w6/day03](sandbox/w6/day03) | [네이버](https://blog.naver.com/dldl8819/224439207013) |
+| day25 | 2026-10-12 | 골든셋 30문항, 오답 분해, 골든셋 점검기 | [w7/day01](sandbox/w7/day01) | [네이버](https://blog.naver.com/dldl8819/224439207585) |
 
 ## 실행
 
