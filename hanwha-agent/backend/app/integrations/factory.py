@@ -6,7 +6,7 @@ from functools import lru_cache
 
 from app.core.config import get_settings
 from app.core.exceptions import ModeNotAvailable
-from app.integrations.ports import LLMPort, EmbedderPort
+from app.integrations.ports import LLMPort, EmbedderPort, RerankerPort
 
 # Claude 어댑터를 하나 만들어서 재사용
 # - @lru_cache : 인자가 없는 함수라 첫 호출 결과(어댑터 객체)가 계속 재사용된다
@@ -47,9 +47,15 @@ def _upstage_embedder() -> EmbedderPort:
 
     return UpstageEmbedder()
 
-# 현재 설정에 맞는 임베딩 어댑터를 돌려주는 함수
+# 현재 설정에 맞는 임베딩 어댑터를 돌려주는 함수 (재사용)
 def get_embedder() -> EmbedderPort:
     provider = get_settings().embed_provider
     if provider == "upstage":
         return _upstage_embedder()
     return _local_embedder()
+
+# 크로스 인코더 어댑터 하나 만들어 돌려주는 함수 (재사용)
+@lru_cache
+def get_cross_encoder() -> RerankerPort:
+    from app.integrations.local_rerank import LocalCrossEncoder
+    return LocalCrossEncoder()

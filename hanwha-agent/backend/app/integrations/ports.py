@@ -50,6 +50,17 @@ class ParsedDoc:
 class ParserPort(Protocol):
     def parse(self, path: str) -> ParsedDoc: ... 
 
+# 검색 결과 담는 객체
+@dataclass
+class RetrievalResult:
+    sources: list[dict] = field(default_factory=list) # 근거 후보 목록
+    steps: list[dict] = field(default_factory=list)   # 화면의 검색 과정 보여줄 때 사용
+    best_score: float = 0.0                           # 후보 중 가장 높은 유사도
+    passed: bool = False                              # 최고 점수가 임계값을 넘었는가?
+    version_note: str | None = None                   # 만료된 문서 버전을 걸렀을 때 사용자에게 알려줄 노트
+    threshold: float = 0.55                           # 임계값
+
+
 # --- embedding ---
 # 임베딩 어댑터가 지켜야할 규칙
 @runtime_checkable
@@ -57,3 +68,10 @@ class EmbedderPort(Protocol):
     dim: int 
     def embed_documents(self, texts: list[str]) -> list[list[float]]: ...
     def embed_query(self, text: str) -> list[float]: ...
+
+# --- 크로스 인코더 ---
+# 크로스 인코더 어댑터가 지켜야할 규약
+@runtime_checkable
+class RerankerPort(Protocol):
+    name: str
+    def score_pairs(self, query: str, texts: list[str]) -> list[float]: ...

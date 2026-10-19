@@ -40,11 +40,27 @@ class Settings(BaseSettings):
     upstage_embed_model: str | None = None
 
     # --- 검색 ---------------------------------------
-    # 임계값: 가장 가까운 근거가 이 점수에 못 미치면 '근거 부족'으로 본다.
-    #   벡터 검색은 맞는 답이 없어도 가장 가까운 것을 돌려준다([[60_벡터_검색]]).
+    # 임계값: 가장 가까운 근거가 이 점수에 못 미치면 '근거 부족'
+    #   벡터 검색은 맞는 답이 없어도 가장 가까운 것을 돌려준다.
     #   그 사실을 숫자 하나로 가리는 자리라 값의 근거가 약하다는 점을 알고 쓴다.
-    retrieval_threshold: float = Field(default=0.55, ge=0.0, le=1.0)
+    retrieval_threshold: float = Field(default=0.60, ge=0.0, le=1.0)
+    # 벡터 검색이 받아올 후보 갯수
     retrieval_top_k: int = Field(default=12, ge=1, le=100)
+    # 질문을 몇 갈래까지 늘리는가
+    multi_query_n: int = Field(default=3, ge=1, le=10)
+    # 다시 줄 세운 뒤 몇 건을 남길 것인가
+    rerank_top_n: int = Field(default=3, ge=1, le=20)
+
+    # --- 리랭커 ---
+    # simple : 간이 리랭커, cross_encoder : 모델이 질문과 조각을 한 번에 읽어 점수를 매김
+    reranker: str = Field(default="simple", pattern=r"^(simple|cross_encoder)$")
+    rerank_model_dir: str = "../models/bge-reranker-v2-m3"
+    rerank_candidates: int = Field(default=12, ge=1, le=100)
+    # 질문 + 조각을 합쳐 이 토큰 수에서 자른다. (문서에 따라 수정이 필요하다.)
+    rerank_max_length: int = Field(default=512, ge=64, le=8192)
+    # 크로스 인코더 점수가 0 ~ 1 범위에 못 미치면 근거 부족
+    rerank_threshold: float = Field(default=0.2, ge=0.0, le=1.0)
+
 
     # --- 관측 langfuse ---
     # 기본값을 False 로 둔다

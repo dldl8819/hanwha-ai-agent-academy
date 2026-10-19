@@ -1,12 +1,12 @@
-# 골든셋 30문항 - 검색 품질 측정용
-# 규칙
-# - 정답은 "어느 문서의 어느 조항에 있는가"로 작성. 문장 전체를 작성하지 않는다.
-# - type은 경우의 수 별로 구분 (화면 출력을 위해 정답률이 낮은 질문 유형과 같은 이름 사용함)
-# - unanswerable : true는 근거 부족 응답이 나와야 정답인 문항
-# - 골든셋 작성 시 원문과 대조하여 정확한 기대 답변 작성 필요
+# 골든셋 30문항 - 검색 품질 측정용 
+# 규칙 
+# - 정답은 "어느 문서의 어느 조항에 있는가"로 작성. 문장 전체를 작성하지 않는다. 
+# - type은 : 경우의 수 별로 구분 (화면 출력을 위해 정답률이 낮은 질문 유형과 같은 이름 사용함)
+# - unanswerable : true는 근거 부족 응답이 나와야 정답인 문항 
+# - 골든셋 작성시, 원문과 대조하여 정확한 기대 답변 작성 필요 
 
 meta:
-  name: 사내 규정 골든셋 v1
+  name: 사내 규정 골든셋 v2
   items: 30
   threshold: 0.55
 
@@ -164,15 +164,18 @@ items:
   - id: G23
     question: 협력사 평가는 어떤 기준으로 하나요?
     type: 타 부서 문서 참조
-    expect_doc: DOC-PU-103
-    expect_version: v1.0
+    expect_doc: DOC-PU-007
+    expect_version: v4.0
     requires_clearance: 대외비
+    expect_keywords: ["협력사 평가", "협조도"]
   - id: G24
     question: 접근권한은 누가 승인하나요?
     type: 타 부서 문서 참조
-    expect_doc: DOC-SE-102
-    expect_version: v1.0
-    requires_clearance: 3급
+    expect_doc: DOC-SE-003
+    expect_version: v2.2
+    requires_clearance: 대외비
+    expect_keywords: ["접근권한", "보안팀장이 승인"]
+
 
   # ── 규정에 없는 사항 (6) — 근거부족 응답이 정답 ──
   - id: G25
