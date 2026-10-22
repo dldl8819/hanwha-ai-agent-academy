@@ -58,8 +58,13 @@ def build_result_chain(
     # ChatPromptTemplate -> LLMResult
     def call_port(value) -> LLMResult:
         messages = value.to_messages()
-        question = "\n\n".join(str(m.content) for m in messages)
-        return llm.answer(question=question, contexts=port_contexts, user=port_user)
+        # 마지막(human) 메시지만 질문으로 넘긴다
+        # - 전체를 이어 붙이면 system 메시지까지 질문에 섞여, 어댑터가 실는 system 과 함께 두 번 들어간다
+        question = str(messages[-1].content)
+        if system_prompt is None:
+            return llm.answer(question=question, contexts=port_contexts, user=port_user)
+        return llm.answer(question=question, contexts=port_contexts, user=port_user,
+                          system=str(messages[0].content))
 
     # run_name 선언해주면 나중에 에러 터졌을 때 찾기 좋다.
     llm_step = RunnableLambda(call_port).with_config(run_name="LLMPort")

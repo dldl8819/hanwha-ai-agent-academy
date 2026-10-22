@@ -230,8 +230,9 @@ _STEP_NAMES = [
     "임베딩",
     "검색 반영 및 현행 버전 지정",
 ]
-# 위 목록에서 지금 실제로 돌아가는 단계 수
-_DONE_STEPS = 5
+# 여섯 단계 모두 끝난 것으로 표시한다
+# - 현행 지정은 업로드 요청 때 버전 등록(create_document)에서 이미 끝난다. 이 작업이 시작될 때는 끝나 있다.
+_DONE_STEPS = 6
 
 
 # 작업 하나를 만들어 번호를 돌려주는 함수
@@ -263,7 +264,7 @@ def run_ingest_job(job_id: str) -> None:
 
         # 단계별 중간 보고를 하지 않는다
         # - ingest_document() 는 파싱·청킹·임베딩을 한 번에 끝내고 결과만 돌려준다.
-        #   그래서 "진행 중"에서 바로 다섯 단계가 함께 ok 로 바뀐다.
+        #   그래서 "진행 중"에서 바로 여섯 단계가 함께 ok 로 바뀐다.
         #   단계마다 갱신하려면 ingest_document 가 콜백을 받아야 한다.
         for i in range(_DONE_STEPS):
             steps[i]["state"] = "ok"
@@ -271,10 +272,8 @@ def run_ingest_job(job_id: str) -> None:
         steps[2]["time"] = f"표 {result['tables']}개"
         steps[3]["time"] = f"{result['chunks']}청크"
         steps[4]["time"] = f"{result['vectors']}벡터"
+        steps[5]["time"] = "현행 지정 완료"
 
-        # 진행률은 구현된 단계 기준이다. 5/6 이라 완료해도 83% 에서 멈춘다.
-        # - 100% 로 적으면 마지막 단계까지 끝난 것처럼 보인다.
-        #   덜 된 것을 덜 됐다고 두는 쪽을 택했다.
         job["progress"] = int(_DONE_STEPS / len(steps) * 100)
         job["chunk_count"] = result["chunks"]
         job["message"] = result["summary"]

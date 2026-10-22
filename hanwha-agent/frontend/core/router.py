@@ -12,3 +12,5 @@ def current_page() -> str:
 # 화면 이동
 def go(page: str) -> None:
     st.session_state["page"] = page
+    # 상태만 바꾸면 이번 실행은 이전 화면을 끝까지 그리고, 다음 클릭에서야 바뀐다
+    st.rerun()

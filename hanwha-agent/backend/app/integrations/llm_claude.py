@@ -9,7 +9,7 @@ from pathlib import Path
 from app.core.config import get_settings
 from app.core.exceptions import ExternalServiceError
 from app.core.logging import get_logger
-from app.integrations.ports import LLMResult
+from app.integrations.ports import LLMResult, ToolCall
 
 # 로거 생성
 log = get_logger(__name__)
@@ -41,6 +41,7 @@ def _load_prompt(name: str) -> str:
 
 # 근거 문서 목록을 모델이 읽을 문자열 한 덩어리로 변환해서 리턴하는 함수
 # - contexts : 근거 항목 목록 (title, version, locator, score, quote 또는 text)
+# - quote 는 화면용으로 220자에서 자른 것이라 원문 text 를 먼저 쓴다
 # - 근거가 0건이면 빈 칸이 아니라 "(근거 문서 없음)"을 넣는다
 #   : 모델이 "근거가 없다"는 사실을 알아야 지어내지 않고 모른다고 답한다
 def _context_block(contexts: list[dict]) -> str:
@@ -49,7 +50,7 @@ def _context_block(contexts: list[dict]) -> str:
     for i, c in enumerate(contexts, 1):
         lines.append(
             f"[근거 {i}] {c.get('title')} {c.get('version')} · {c.get('locator')} "
-            f"(유사도 {c.get('score', 0):.2f})\n{c.get('quote') or c.get('text') or ''}"
+            f"(유사도 {c.get('score', 0):.2f})\n{c.get('text') or c.get('quote') or ''}"
         )
     return "\n\n".join(lines) if lines else "(근거 문서 없음)"
 
@@ -128,11 +129,11 @@ class ClaudeLLM:
     # - ports.py 의 LLMPort.answer 구현체
     # - 인자 이름이 LLMPort 와 정확히 같아야 한다
     #   : runtime_checkable 은 메서드 이름만 보니까, 인자 이름이 달라도 isinstance 는 통과한다
-    def answer(self, *, question: str, contexts: list[dict], user: dict) -> LLMResult:
+    def answer(self, *, question: str, contexts: list[dict], user: dict, system: str | None = None) -> LLMResult:
         # question : 사용자 질문
         # contexts : 근거 문서 목록
         # user     : 질문한 사람 (name, dept ...)
-        system = _load_prompt("answer_system.md")
+        system = system or _load_prompt("answer_system.md")
         # 사용자 메시지는 요청마다 코드가 조립한다
         # - ## 제목으로 나눠, 모델이 어디까지가 근거이고 어디부터가 질문인지 구분하게 한다
         prompt = (
@@ -153,6 +154,60 @@ class ClaudeLLM:
             output_tok=usage["output"],
             cost_krw=estimate_cost_krw(total_in, usage["output"]),
             latency_ms=ms
+        )
+
+    # 도구 목록을 함께 실어 Messages API 를 한 번 호출
+    # - _call 과 달리 messages 를 통째로 받는다 : 루프가 돌수록 assistant/tool_result 가 쌓이기 때문
+    # - 본문 문자열이 아니라 응답 객체째 돌려준다 : tool_use 블록과 stop_reason 이 필요하다
+    def _call_tools(self, system: str, messages: list[dict], tools: list[dict]) -> tuple[object, dict, int]:
+        started = time.perf_counter()
+        try:
+            resp = self._client.messages.create(
+                model=self._model,
+                max_tokens=get_settings().max_tokens,
+                system=system,
+                messages=messages,
+                tools=tools,
+            )
+        except Exception as exc:
+            log.exception("Claude 도구 호출 실패")
+            raise ExternalServiceError("Claude 호출에 실패했습니다.", detail=str(exc)) from exc
+        usg = resp.usage
+        usage = {
+            "input": getattr(usg, "input_tokens", 0) or 0,
+            "cache_read": getattr(usg, "cache_read_input_tokens", 0) or 0,
+            "cache_write": getattr(usg, "cache_creation_input_tokens", 0) or 0,
+            "output": getattr(usg, "output_tokens", 0) or 0,
+        }
+        return resp, usage, int((time.perf_counter() - started) * 1000)
+
+    # 도구 목록을 전달하고 한 번 호출한다
+    # - ports.py 의 LLMPort.answer_with_tools 구현체
+    # - extras 에 담는 것
+    #   tool_calls  : 우리 코드가 실행할 도구 호출 목록 (없으면 마지막 턴)
+    #   stop_reason : tool_use / end_turn / max_tokens ...
+    #   blocks      : 모델 응답 원본. 다음 턴 assistant 메시지로 그대로 되돌려 보낸다
+    def answer_with_tools(self, *, messages: list[dict], tools: list[dict], user: dict) -> LLMResult:
+        system = _load_prompt("agent_system.md")
+        system = f"{system}\n\n## 질문한 사람\n{user.get('name')} - {user.get('dept')}"
+        resp, usage, ms = self._call_tools(system, messages, tools)
+        text = "".join(b.text for b in resp.content if getattr(b, "type", "") == "text")
+        calls = [ToolCall(id=b.id, name=b.name, args=dict(b.input))
+                 for b in resp.content if getattr(b, "type", "") == "tool_use"]
+        total_in = usage["input"] + usage["cache_read"] + usage["cache_write"]
+        return LLMResult(
+            text=text,
+            model=self._model,
+            input_tok=total_in,
+            cache_tok=usage["cache_read"],
+            output_tok=usage["output"],
+            cost_krw=estimate_cost_krw(total_in, usage["output"]),
+            latency_ms=ms,
+            extras={
+                "tool_calls": calls,
+                "stop_reason": resp.stop_reason,
+                "blocks": [b.model_dump(exclude_none=True) for b in resp.content],
+            },
         )
 
 # 모델 응답 문자열에서 JSON 객체만 꺼내는 함수

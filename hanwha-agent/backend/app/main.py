@@ -1,17 +1,43 @@
+from __future__ import annotations
+
+import time
+
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 # from app.api.v1.documents import router as document_router
 # from app.api.v1.auth import router as auth_router
 from app.api.v1 import auth, documents, chat, ops
+from app.core.config import get_settings
 from app.core.exceptions import AgentError
 from contextlib import asynccontextmanager
-from app.core.logging import setup_logging
+from app.core.logging import setup_logging, get_logger
 from fastapi.exceptions import RequestValidationError
+from app.integrations import factory
+
+log = get_logger(__name__)
+
+# 서버 시작 때 로컬 모델을 미리 열어 둔다
+# - 못 열어도 서버는 뜬다. 경고만 남기고 첫 질문 때 다시 연다
+def _warm_up_models() -> None:
+    settings = get_settings()
+    if not settings.warm_up_models:
+        return
+    started = time.perf_counter()
+    try:
+        if settings.embed_provider == "local":
+            factory.get_embedder()
+        if settings.reranker == "cross_encoder":
+            factory.get_cross_encoder()
+    except AgentError as e:
+        log.warning("모델을 미리 열지 못했습니다 - %s (첫 질문에서 다시 엽니다)", e.message)
+        return
+    log.info("모델 미리 열기 완료: %.1f초", time.perf_counter() - started)
 
 # lifespan 함수 정의
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     setup_logging()
+    _warm_up_models()
     yield
 
 # FastAPI 앱 생성

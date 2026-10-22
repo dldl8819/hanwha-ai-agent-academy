@@ -17,6 +17,10 @@ def init_state() -> None:
     for key, value in DEFAULTS.items():
         # 화면을 다시 실행해도 데이터 유지되는 변수들 초기화
         st.session_state.setdefault(key, value)
+    # 필터 값이 화면 이동 뒤에도 남도록 다시 적어 둔다
+    # - 위젯 key 로 쓰인 값은 그 위젯이 안 그려지는 화면으로 가면 Streamlit 이 지운다
+    for key in ("f_dept", "f_level", "f_status", "f_q"):
+        st.session_state[key] = st.session_state[key]
 
 # 현재 사용자 정보 조회 
 # - 로그인 -> 사용자 정보

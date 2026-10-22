@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time 
+import json
 
 import app.integrations.factory as factory 
 
@@ -9,12 +10,13 @@ from pydantic import ValidationError
 from app.core.guards import check_question
 from app.core.logging import get_logger
 from app.core.config import get_settings
-from app.core.exceptions import NotFound
+from app.core.exceptions import ApprovalRequired, NotFound
 from app.db.session import session_scope
 from app.models import Run, UsageLog
 from app.services.ids import next_run_id
-from app.schemas.chat import AnswerOut, AskOut
+from app.schemas.chat import AnswerOut, AskOut, AnswerSource
 from app.agent.chain import build_result_chain 
+from app.tools import registry
 
 
 log = get_logger(__name__)
@@ -28,8 +30,6 @@ FALLBACK_ANSWER = "요청을 처리했지만 근거를 확인하지 못했습니
 # 질문자 (임시)
 DEFAULT_USER = {"name": "김민준", "dept": "인프라사업부 2팀"}
 
-# 근거 문서 목록!! 
-NO_CONTEXTS: list[dict] = []
 
 # pydantic 의 오류 목록을 모델에게 다시 보낼 한 줄의 문장으로 변경해서 리턴 : 재시도 힌트 
 def _hint_from(errors: list[dict]) -> str:
@@ -88,11 +88,6 @@ def ask(*, question: str, run_id: str | None = None, user_id: int = 1) -> AskOut
     # 2. 어댑터 한 개. 
     llm = factory.get_llm() 
 
-    # 체인 생성 
-    chain = build_result_chain(llm, contexts=NO_CONTEXTS, user=DEFAULT_USER).with_retry(
-        stop_after_attempt=2
-    )
-
     from app.integrations.langfuse_client import score, trace
     from app.integrations.llm_claude import _extract_json 
 
@@ -112,7 +107,7 @@ def ask(*, question: str, run_id: str | None = None, user_id: int = 1) -> AskOut
             )
         )
 
-    # NO_CONTEXTS 갈아 끼우기 
+    # 근거 검색
     from app.rag.retriever import LiveRetriever
     with session_scope() as session: 
         found = LiveRetriever().search(
@@ -195,7 +190,90 @@ def get_run(*, run_id: str) -> dict:
         }
 
 
+# ----- 도구 루프 ----------------------------------------------------
+# ask() 는 코드가 검색 순서를 정한다. ask_with_tools() 는 모델이 도구를 부를지·무엇으로 부를지 정한다.
 
+# 도구 요청 → 실행 → 결과 전달 왕복의 상한. 모델이 멈추지 않아도 여기서 끊는다
+# - 검색 → 초안 → 전송 시도까지 세 번에 마무리 답 한 번이 들어가도록 4
+MAX_TOOL_TURNS = 4
 
+# 상한에 닿아 답을 마치지 못했을 때 남는 문구
+TOOL_LIMIT_ANSWER = "(도구 호출 상한에 닿아 답을 마치지 못했습니다)"
 
+# 질문 하나에 도구 루프로 답하기
+def ask_with_tools(*, question: str, run_id: str | None = None, user_id: int = 1) -> AskOut:
+    q = check_question(question)
+    llm = factory.get_llm()
+    started = time.perf_counter()
+    with session_scope() as session:
+        if run_id is None:
+            run_id = next_run_id(session)
+        session.add(Run(id=run_id, user_id=user_id, question=q,
+                        status="진행중", mode=get_settings().app_mode))
 
+    user = {**DEFAULT_USER, "clearance": "일반"}
+
+    # 도구 목록은 등록소에서 받는다. 도구를 늘려도 이 함수는 손대지 않는다
+    registry.load_all()
+    tools = registry.all_tools()
+    schemas = [t.schema for t in tools]
+    by_name = {t.name: t for t in tools}
+
+    # 서버가 도구마다 넣는 인자. 스키마에 없는 칸이라 모델은 정할 수 없다
+    ours = {"search_documents": {"user": user},
+            "create_draft": {"user": user, "run_id": run_id}}
+
+    messages: list[dict] = [{"role": "user", "content": q}]
+    last_out: dict = {}          # 마지막 도구 실행 결과. 출처는 여기서 꺼낸다
+    made: dict | None = None     # 초안 도구 결과. 출처를 덮지 않도록 따로 받는다
+    sent: dict | None = None     # 외부 전송 결과. 승인으로 막힌 것은 담지 않는다
+    text = TOOL_LIMIT_ANSWER     # 상한에 닿으면 이 문구가 남는다
+
+    for turn in range(1, MAX_TOOL_TURNS + 1):
+        result = llm.answer_with_tools(messages=messages, tools=schemas, user=user)
+        _record_usage(run_id, result)
+
+        calls = result.extras.get("tool_calls") or []
+        if not calls:            # 도구를 부르지 않았다 = 마지막 턴
+            text = result.text
+            break
+
+        # assistant 턴을 그대로 대화에 붙인다. 모델은 자기가 무엇을 요청했는지 기억하지 못한다
+        messages.append({"role": "assistant", "content": result.extras["blocks"]})
+        blocks = []
+        for c in calls:
+            tool = by_name.get(c.name)
+            try:
+                out = tool.run(**c.args, **ours.get(c.name, {})) if tool else {"error": f"모르는 도구: {c.name}"}
+            except ApprovalRequired as e:
+                # 막힌 사실을 모델에게 돌려준다. 루프는 끊지 않는다
+                out = {"error": str(e), "approval_required": True}
+
+            if tool and c.name == "create_draft":
+                made = out
+            elif tool and c.name == "search_documents":
+                last_out = out
+            elif tool and c.name == "send_slack" and not out.get("approval_required"):
+                sent = out
+
+            blocks.append({"type": "tool_result", "tool_use_id": c.id,
+                           "content": json.dumps(out, ensure_ascii=False, default=str)})
+        messages.append({"role": "user", "content": blocks})
+    else:
+        log.warning("도구 호출 상한 %d회에 닿았습니다(run_id=%s)", MAX_TOOL_TURNS, run_id)
+
+    # 출처는 모델에게 다시 묻지 않는다. 도구가 돌려준 값에서 우리가 붙인다
+    sources = []
+    for s in last_out.get("sources", []):
+        try:
+            sources.append(AnswerSource(**s))
+        except ValidationError:
+            log.warning("근거를 스키마로 만들지 못해 건너뜁니다: %s", s.get("doc_id"))
+
+    out = AskOut(answer=text, sources=sources, run_id=run_id, attempts=turn,
+                 enough_evidence=bool(last_out.get("passed")),
+                 steps=last_out.get("steps", []), fallback_used=False,
+                 draft=made if made and "body" in made else None,
+                 sent=sent)
+    _close_run(run_id, out, started)
+    return out

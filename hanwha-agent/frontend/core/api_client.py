@@ -116,9 +116,11 @@ def stats(*, emp_no: str | None = None) -> dict:
     }
 
 # 질문 하나 백엔드에 보내면 답변을 받아오는 함수
-def ask(question: str) -> dict:
+def ask(question: str, *, tools: bool = False) -> dict:
     # question: 사용자가 입력창에 입력한 질문
-    return _request("POST", "/api/v1/chat/messages", json={"question": question})
+    # tools   : True 면 서버가 도구 루프(ask_with_tools)로 답한다
+    return _request("POST", "/api/v1/chat/messages", json={"question": question},
+                    params={"tools": True} if tools else None)
 # 파일 하나를 백엔드로 보내 업로드를 요청하고 작업 번호를 받는 함수
 # - files 의 값은 (파일명, 바이트) 튜플이다. 파일명을 빼고 바이트만 주면
 #   서버가 확장자를 알 수 없어 ALLOWED_EXTS 검사에서 걸린다.

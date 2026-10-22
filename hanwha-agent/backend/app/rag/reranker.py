@@ -6,9 +6,11 @@ import re
 
 from app.core.config import get_settings
 
-_TOKEN = re.compile(r"[가-힣A-Za-z0-9]")
+# + 가 없으면 한 글자씩 잘리고, 아래에서 한 글자짜리를 버리므로 집합이 늘 비어 어휘 점수가 0 이 된다
+# - + 를 붙여도 조사가 붙은 어절 단위다 ("일비를", "표로"). 형태소로 자르지 않는다
+_TOKEN = re.compile(r"[가-힣A-Za-z0-9]+")
 
-# 글을 두 글자 이상인 낱말의 집합(중복제거)으로 변경 해주는 함수 
+# 글을 두 글자 이상인 낱말의 집합(중복제거)으로 변경 해주는 함수
 def _tokens(text: str) -> set[str]:
     return {t for t in _TOKEN.findall(text or "") if len(t) > 1}
 
@@ -61,12 +63,13 @@ def rerank(query: str, candidates: list[dict], top_n: int = 3,
 # 최고 점수, 합격선, 통과 여부를 한번에 리턴해주는 함수 
 def judge_gate(rows: list[dict]) -> tuple[float, float, bool]:
     settings = get_settings() 
+    # 크로스 인코더면 그 점수와 그 합격선으로 판정한다
+    # - 답 있음/없음 사이 여유가 코사인 0.01, 크로스 인코더 0.0612 (concepts 77)
     if any(r.get("rerank_by") == "cross_encoder" for r in rows):
-        best = max((float(r.get("score", 0.0)) for r in rows), default=0.0)
-        threshold = settings.retrieval_threshold
+        best = max((float(r.get("rerank_score", 0.0)) for r in rows), default=0.0)
+        threshold = settings.rerank_threshold
     else:
-        # 간이 리랭커 경로. 지금은 위와 같은 값을 쓴다 —
-        # rerank_score 가 아니라 코사인 유사도(score)로 판정하므로 두 갈래가 같다.
+        # 간이 리랭커와 리랭킹 없음은 코사인 유사도로 판정한다
         best = max((float(r.get("score", 0.0)) for r in rows), default=0.0)
         threshold = settings.retrieval_threshold
 

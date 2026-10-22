@@ -19,9 +19,12 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 # - response_model=AskOut : 돌려주는 객체를 AskOut 으로 한 번 더 걸러서 내보낸다
 #   서비스가 필드를 더 담아 보내도 스키마에 없는 값은 응답에 나가지 않는다
 @router.post("/messages", response_model=AskOut)
-def create_message(payload: ChatRequest) -> AskOut:
+def create_message(payload: ChatRequest, tools: bool = False) -> AskOut:
     # ChatRequest 가 길이(2~2000자)를 이미 걸렀지만 여기서 멈추지 않는다
     # - 화면을 거치지 않는 호출도 있어서, 실제 상한은 서비스 안의 가드(check_question)가 다시 본다
+    # tools=true (쿼리스트링) 이면 도구 루프로 답한다. 기본은 기존 경로
+    if tools:
+        return chat_service.ask_with_tools(question=payload.question)
     return chat_service.ask(question=payload.question)
 
 

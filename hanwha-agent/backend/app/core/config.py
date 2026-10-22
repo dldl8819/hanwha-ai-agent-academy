@@ -27,6 +27,10 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///./app.db"
     debug: bool = False
     allow_external_send: bool = False
+    # --- Slack ---------------------------
+    # 강사님 코드엔 이 두 필드가 없어 SlackClient() 를 만드는 순간 AttributeError 가 난다
+    slack_bot_token: SecretStr | None = None
+    slack_default_channel: str = ""
     # 실습 - 환경변수 값 추가 upstage_api_key
     upstage_api_key: SecretStr | None = None
     upstage_base_url: str = "https://api.upstage.ai/v1"
@@ -60,6 +64,10 @@ class Settings(BaseSettings):
     rerank_max_length: int = Field(default=512, ge=64, le=8192)
     # 크로스 인코더 점수가 0 ~ 1 범위에 못 미치면 근거 부족
     rerank_threshold: float = Field(default=0.2, ge=0.0, le=1.0)
+
+    # 서버 시작 때 로컬 모델(임베딩·리랭커)을 미리 연다
+    # - 끄면 첫 질문이 모델 여는 시간(리랭커 약 40초)을 그대로 떠안는다
+    warm_up_models: bool = True
 
 
     # --- 관측 langfuse ---

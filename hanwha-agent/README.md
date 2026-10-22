@@ -17,15 +17,20 @@ hanwha-agent/
 │   │   ├── schemas/      요청·응답 형태 (Pydantic)
 │   │   ├── integrations/ 외부 연동 (LLM 어댑터, 관측)
 │   │   ├── agent/        프롬프트 파일
+│   │   ├── tools/        에이전트가 부르는 도구와 등록소 (부작용 등급 강제)
 │   │   ├── core/         설정, 예외, 로깅, 보안, 가드
 │   │   └── db/           세션, 초기화, 시드, 마이그레이션
 │   └── tests/          pytest (계층 규칙 검사 포함)
 ├── frontend/           Streamlit 화면 + UI 킷
+├── mcp_server/         MCP stdio 서버 (JSON-RPC 2.0)
 ├── concepts/           개념 노트 (과목별 폴더, 번호는 학습 순서)
 │   ├── 1_AI서비스_백엔드_실무/
 │   ├── 2_AI-Native_아키텍처_테스트/
 │   ├── 3_LLM_오케스트레이션_파이프라인/
-│   └── 4~8/              남은 과목 (아래 "과정 구성" 참고)
+│   ├── 4_실무형_RAG_시스템_최적화/
+│   ├── 5_에이전트_기획_툴_연동/
+│   ├── 6_멀티_에이전트_파이프라인_자동화/
+│   └── 7~8/              남은 과목 (아래 "과정 구성" 참고)
 └── sandbox/            날짜별 실습 코드
 ```
 
@@ -39,8 +44,8 @@ hanwha-agent/
 | 2 | AI-Native 아키텍처 및 테스트 공학 | `2_AI-Native_아키텍처_테스트/` | 21~32 |
 | 3 | LLM 오케스트레이션 및 파이프라인 구축 | `3_LLM_오케스트레이션_파이프라인/` | 33~38 |
 | 4 | 실무형 RAG 시스템 구축 및 최적화 | `4_실무형_RAG_시스템_최적화/` | 39~77 |
-| 5 | AI 에이전트 기획 및 툴 연동 실무 | `5_에이전트_기획_툴_연동/` | 예정 |
-| 6 | 멀티 에이전트 제어 및 파이프라인 자동화 | `6_멀티_에이전트_파이프라인_자동화/` | 예정 |
+| 5 | AI 에이전트 기획 및 툴 연동 실무 | `5_에이전트_기획_툴_연동/` | 78~84 |
+| 6 | 멀티 에이전트 제어 및 파이프라인 자동화 | `6_멀티_에이전트_파이프라인_자동화/` | 85~88 |
 | 7 | 엔터프라이즈 AI 에이전트 배포 및 상용화 프로젝트 | `7_엔터프라이즈_배포_상용화/` | 예정 |
 | 8 | 해커톤 프로젝트 | `8_해커톤_프로젝트/` | 예정 |
 
@@ -107,36 +112,57 @@ hanwha-agent/
 | 75 | [리랭킹 두 가지](concepts/4_실무형_RAG_시스템_최적화/75_리랭킹_두_가지.md) | 76 | [정책 필터를 되돌리고 다시 재다](concepts/4_실무형_RAG_시스템_최적화/76_정책_필터를_되돌리고_다시_재다.md) |
 | 77 | [점수를 재면서 쓰지 않는다](concepts/4_실무형_RAG_시스템_최적화/77_점수를_재면서_쓰지_않는다.md) | | |
 
+### 5. AI 에이전트 기획 및 툴 연동 실무 — `concepts/5_에이전트_기획_툴_연동/`
+
+| # | 주제 | # | 주제 |
+| --- | --- | --- | --- |
+| 78 | [에이전트 루프와 멈추는 조건](concepts/5_에이전트_기획_툴_연동/78_에이전트_루프와_멈추는_조건.md) | 79 | [도구 정의와 tool_result](concepts/5_에이전트_기획_툴_연동/79_도구_정의와_tool_result.md) |
+| 80 | [도구 루프를 돌려 보다](concepts/5_에이전트_기획_툴_연동/80_도구_루프를_돌려_보다.md) | 81 | [출처와 판정이 답과 어긋난다](concepts/5_에이전트_기획_툴_연동/81_출처와_판정이_답과_어긋난다.md) |
+| 82 | [수업 코드 고친 것 일곱](concepts/5_에이전트_기획_툴_연동/82_수업_코드_고친_것_일곱.md) | 83 | [어휘 점수가 늘 0이었다](concepts/5_에이전트_기획_툴_연동/83_어휘_점수가_늘_0이었다.md) |
+| 84 | [초안 도구와 쓰기 등급](concepts/5_에이전트_기획_툴_연동/84_초안_도구와_쓰기_등급.md) | | |
+
+### 6. 멀티 에이전트 제어 및 파이프라인 자동화 — `concepts/6_멀티_에이전트_파이프라인_자동화/`
+
+| # | 주제 | # | 주제 |
+| --- | --- | --- | --- |
+| 85 | [시스템 프롬프트가 두 번 들어갔다](concepts/6_멀티_에이전트_파이프라인_자동화/85_시스템_프롬프트가_두_번_들어갔다.md) | 86 | [도구 등록소](concepts/6_멀티_에이전트_파이프라인_자동화/86_도구_등록소.md) |
+| 87 | [외부 전송과 승인 경계](concepts/6_멀티_에이전트_파이프라인_자동화/87_외부_전송과_승인_경계.md) | 88 | [MCP stdio 서버](concepts/6_멀티_에이전트_파이프라인_자동화/88_MCP_stdio_서버.md) |
+
 ## 학습 기록
 
-| 일차 | 날짜 | 주제 | 실습 코드 | 후기 |
-| --- | --- | --- | --- | --- |
-| day04 | 2026-09-07 | 개발환경 설정, Git/GitHub, 타입 힌트와 Pydantic, 환경변수 | [w2/day01](sandbox/w2/day01) | [네이버](https://blog.naver.com/dldl8819/224403884665) |
-| day05 | 2026-09-08 | 레이어드 아키텍처, 예외 처리와 로깅, pytest, 네트워크·HTTP | [w2/day02](sandbox/w2/day02) | [네이버](https://blog.naver.com/dldl8819/224405026520) |
-| day06 | 2026-09-09 | FastAPI, APIRouter, 의존성 주입, 예외 처리 | [w2/day03](sandbox/w2/day03) | [네이버](https://blog.naver.com/dldl8819/224406227307) |
-| day07 | 2026-09-10 | SQLAlchemy, SQLite, ORM 모델, CRUD, JOIN | [w2/day04](sandbox/w2/day04) | [네이버](https://blog.naver.com/dldl8819/224407392783) |
-| day08 | 2026-09-11 | 스키마, 파일 업로드, 검색 키워드 확장 | [w2/day05](sandbox/w2/day05) | [네이버](https://blog.naver.com/dldl8819/224410931250) |
-| day09 | 2026-09-14 | async/await, Streamlit, UI 킷, 비밀번호 해싱 | [w3/day01](sandbox/w3/day01) | [네이버](https://blog.naver.com/dldl8819/224412170740) |
-| day10 | 2026-09-15 | 로그인, 화면-API 연동, Docker, PostgreSQL | [w3/day02](sandbox/w3/day02) | [네이버](https://blog.naver.com/dldl8819/224412738524) |
-| day11 | 2026-09-16 | PostgreSQL 전환, Alembic, 포트와 어댑터, 토큰 과금 | [w3/day03](sandbox/w3/day03) | [네이버](https://blog.naver.com/dldl8819/224413930997) |
-| day12 | 2026-09-17 | Claude API 호출, 어댑터 구현, 프롬프트 설계, 구조화 출력 | [w3/day04](sandbox/w3/day04) | [네이버](https://blog.naver.com/dldl8819/224415144340) |
-| day13 | 2026-09-18 | 가드 함수, 스키마 검증과 재시도, 폴백, 골든셋 테스트 | [w3/day05](sandbox/w3/day05) | [네이버](https://blog.naver.com/dldl8819/224420059153) |
-| day14 | 2026-09-21 | LangChain·LangGraph 개요, LangFuse 관측, 실행 기록 테이블 | [w4/day01](sandbox/w4/day01) | [네이버](https://blog.naver.com/dldl8819/224420075761) |
-| day15 | 2026-09-22 | 사용량·원가 기록, RAG 개요, LangChain 기초, 체인 합성 | [w4/day02](sandbox/w4/day02) | [네이버](https://blog.naver.com/dldl8819/224420079457) |
-| day16 | 2026-09-23 | LangChain 앱 적용, 비동기와 스트리밍, 재시도·폴백 | [w4/day03](sandbox/w4/day03) | [네이버](https://blog.naver.com/dldl8819/224421103051) |
-| day17 | 2026-09-28 | 문서 파싱, PDF·DOCX 파서, 표 추출과 마크다운 | [w5/day01](sandbox/w5/day01) | [네이버](https://blog.naver.com/dldl8819/224425026465) |
-| day18 | 2026-09-29 | 기술 스택 지도, 임베딩 모델, HWPX 파싱 | [w5/day02](sandbox/w5/day02) | [네이버](https://blog.naver.com/dldl8819/224426136498) |
-| day19 | 2026-09-30 | 채팅 화면, 임베딩과 코사인 유사도, 청킹 규칙 | [w5/day03](sandbox/w5/day03) | [네이버](https://blog.naver.com/dldl8819/224427325203) |
-| day20 | 2026-10-01 | 파서 진입점, 엑셀·PPT 파싱, 스캔본과 상용 파서 | [w5/day04](sandbox/w5/day04) | [네이버](https://blog.naver.com/dldl8819/224429616696) |
-| day21 | 2026-10-02 | 파서 숙제 해결, 로컬 파서와 상용 파서 비교, OCR | [w5/day05](sandbox/w5/day05) | [네이버](https://blog.naver.com/dldl8819/224429617172) |
-| day22 | 2026-10-06 | 청크 저장, 업로드 파이프라인, 배경 작업과 작업 번호 | [w6/day01](sandbox/w6/day01) | [네이버](https://blog.naver.com/dldl8819/224433779775) |
-| day23 | 2026-10-07 | 임베딩 적재, 거리 연산자와 색인, 벡터 검색 | [w6/day02](sandbox/w6/day02) | [네이버](https://blog.naver.com/dldl8819/224434895235) |
-| day24 | 2026-10-08 | 문서 적재 정책, 현행 판 거르기, 검색 정책 | [w6/day03](sandbox/w6/day03) | [네이버](https://blog.naver.com/dldl8819/224439207013) |
-| day25 | 2026-10-12 | 골든셋 30문항, 오답 분해, 골든셋 점검기 | [w7/day01](sandbox/w7/day01) | [네이버](https://blog.naver.com/dldl8819/224439207585) |
-| day26 | 2026-10-13 | 취업 특강 — 채용 시장과 AI, 서류의 구조 | — | 발행 예정 |
-| day27 | 2026-10-14 | 취업 특강 — 면접 전략과 유형, AI 모의면접 | — | 발행 예정 |
-| day28 | 2026-10-15 | 질의 재작성, 키워드 검색과 RRF, 재측정 | [w7/day02](sandbox/w7/day02) | 발행 예정 |
-| day29 | 2026-10-16 | 리랭킹, 크로스 인코더, 정책 필터 복구 | [w7/day03](sandbox/w7/day03) | 발행 예정 |
+일차별 후기는 [네이버 블로그](https://blog.naver.com/dldl8819/)에 올립니다.
+
+| 일차 | 날짜 | 주제 | 실습 코드 |
+| --- | --- | --- | --- |
+| day04 | 2026-09-07 | 개발환경 설정, Git/GitHub, 타입 힌트와 Pydantic, 환경변수 | [w2/day01](sandbox/w2/day01) |
+| day05 | 2026-09-08 | 레이어드 아키텍처, 예외 처리와 로깅, pytest, 네트워크·HTTP | [w2/day02](sandbox/w2/day02) |
+| day06 | 2026-09-09 | FastAPI, APIRouter, 의존성 주입, 예외 처리 | [w2/day03](sandbox/w2/day03) |
+| day07 | 2026-09-10 | SQLAlchemy, SQLite, ORM 모델, CRUD, JOIN | [w2/day04](sandbox/w2/day04) |
+| day08 | 2026-09-11 | 스키마, 파일 업로드, 검색 키워드 확장 | [w2/day05](sandbox/w2/day05) |
+| day09 | 2026-09-14 | async/await, Streamlit, UI 킷, 비밀번호 해싱 | [w3/day01](sandbox/w3/day01) |
+| day10 | 2026-09-15 | 로그인, 화면-API 연동, Docker, PostgreSQL | [w3/day02](sandbox/w3/day02) |
+| day11 | 2026-09-16 | PostgreSQL 전환, Alembic, 포트와 어댑터, 토큰 과금 | [w3/day03](sandbox/w3/day03) |
+| day12 | 2026-09-17 | Claude API 호출, 어댑터 구현, 프롬프트 설계, 구조화 출력 | [w3/day04](sandbox/w3/day04) |
+| day13 | 2026-09-18 | 가드 함수, 스키마 검증과 재시도, 폴백, 골든셋 테스트 | [w3/day05](sandbox/w3/day05) |
+| day14 | 2026-09-21 | LangChain·LangGraph 개요, LangFuse 관측, 실행 기록 테이블 | [w4/day01](sandbox/w4/day01) |
+| day15 | 2026-09-22 | 사용량·원가 기록, RAG 개요, LangChain 기초, 체인 합성 | [w4/day02](sandbox/w4/day02) |
+| day16 | 2026-09-23 | LangChain 앱 적용, 비동기와 스트리밍, 재시도·폴백 | [w4/day03](sandbox/w4/day03) |
+| day17 | 2026-09-28 | 문서 파싱, PDF·DOCX 파서, 표 추출과 마크다운 | [w5/day01](sandbox/w5/day01) |
+| day18 | 2026-09-29 | 기술 스택 지도, 임베딩 모델, HWPX 파싱 | [w5/day02](sandbox/w5/day02) |
+| day19 | 2026-09-30 | 채팅 화면, 임베딩과 코사인 유사도, 청킹 규칙 | [w5/day03](sandbox/w5/day03) |
+| day20 | 2026-10-01 | 파서 진입점, 엑셀·PPT 파싱, 스캔본과 상용 파서 | [w5/day04](sandbox/w5/day04) |
+| day21 | 2026-10-02 | 파서 숙제 해결, 로컬 파서와 상용 파서 비교, OCR | [w5/day05](sandbox/w5/day05) |
+| day22 | 2026-10-06 | 청크 저장, 업로드 파이프라인, 배경 작업과 작업 번호 | [w6/day01](sandbox/w6/day01) |
+| day23 | 2026-10-07 | 임베딩 적재, 거리 연산자와 색인, 벡터 검색 | [w6/day02](sandbox/w6/day02) |
+| day24 | 2026-10-08 | 문서 적재 정책, 현행 판 거르기, 검색 정책 | [w6/day03](sandbox/w6/day03) |
+| day25 | 2026-10-12 | 골든셋 30문항, 오답 분해, 골든셋 점검기 | [w7/day01](sandbox/w7/day01) |
+| day26 | 2026-10-13 | 취업 특강 — 채용 시장과 AI, 서류의 구조 | — |
+| day27 | 2026-10-14 | 취업 특강 — 면접 전략과 유형, AI 모의면접 | — |
+| day28 | 2026-10-15 | 질의 재작성, 키워드 검색과 RRF, 재측정 | [w7/day02](sandbox/w7/day02) |
+| day29 | 2026-10-16 | 리랭킹, 크로스 인코더, 정책 필터 복구 | [w7/day03](sandbox/w7/day03) |
+| day30 | 2026-10-19 | 에이전트 루프, 도구 정의와 tool_result, 도구 루프 측정 | [w8/day01](sandbox/w8/day01) |
+| day31 | 2026-10-20 | 수업 코드 수정, 어휘 점수 버그와 재측정, 초안 작성 도구 | [w8/day02](sandbox/w8/day02) |
+| day32 | 2026-10-21 | 시스템 프롬프트 중복, 도구 등록소, Slack 승인 경계, MCP 서버 | — |
 
 ## 실행
 

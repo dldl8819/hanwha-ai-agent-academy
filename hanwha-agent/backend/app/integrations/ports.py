@@ -16,16 +16,36 @@ class LLMResult:
     # 화면에 필요한 여분 데이터 세팅
     extras: dict = field(default_factory=dict)
 
+# 모델이 요청한 도구 호출 한 건
+# - id 는 tool_result 의 tool_use_id 에 그대로 돌려줘야 한다 (모델이 짝을 맞추는 열쇠)
+@dataclass
+class ToolCall:
+    id: str
+    name: str
+    args: dict
+
 # LLM 어댑터가 지켜야할 규칙
 # - 인터페이스
 # - 코드 규격
 @runtime_checkable
 class LLMPort(Protocol):
+    # 근거를 받아 한 번에 답하기 (코드가 검색 순서를 정하는 길)
     def answer(
-        self, 
-        *, 
+        self,
+        *,
         question:str,
         contexts: list[dict],
+        user: dict,
+        system: str | None = None
+    ) -> LLMResult: ...
+
+    # 도구 목록을 실어 모델을 한 번 부르기 (모델이 도구를 고르는 길)
+    # - 루프는 서비스가 돌린다. 어댑터는 한 번 부르고 tool_use 블록을 ToolCall 로 바꿔 줄 뿐이다
+    def answer_with_tools(
+        self,
+        *,
+        messages: list[dict],
+        tools: list[dict],
         user: dict
     ) -> LLMResult: ...
 
@@ -75,3 +95,18 @@ class EmbedderPort(Protocol):
 class RerankerPort(Protocol):
     name: str
     def score_pairs(self, query: str, texts: list[str]) -> list[float]: ...
+
+# --- 슬랙 ---
+# 보낸 결과 한 건
+@dataclass
+class SlackResult:
+    ok: bool
+    channel: str = ""
+    ts: str = ""                # 메시지 식별자
+    error: str | None = None
+    simulated: bool = False     # 실제로 보내지 않았으면 True
+
+# 슬랙 어댑터가 지켜야할 규약
+@runtime_checkable
+class SlackPort(Protocol):
+    def post(self, *, channel: str, text: str) -> SlackResult: ...

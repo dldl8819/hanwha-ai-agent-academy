@@ -6,7 +6,7 @@ from functools import lru_cache
 
 from app.core.config import get_settings
 from app.core.exceptions import ModeNotAvailable
-from app.integrations.ports import LLMPort, EmbedderPort, RerankerPort
+from app.integrations.ports import LLMPort, EmbedderPort, RerankerPort, SlackPort
 
 # Claude 어댑터를 하나 만들어서 재사용
 # - @lru_cache : 인자가 없는 함수라 첫 호출 결과(어댑터 객체)가 계속 재사용된다
@@ -59,3 +59,20 @@ def get_embedder() -> EmbedderPort:
 def get_cross_encoder() -> RerankerPort:
     from app.integrations.local_rerank import LocalCrossEncoder
     return LocalCrossEncoder()
+
+
+# 슬랙 어댑터를 하나 만들어 재사용
+@lru_cache
+def _live_slack() -> SlackPort:
+    from app.integrations.slack import SlackClient
+    return SlackClient()
+
+# 슬랙 어댑터를 돌려주는 함수
+# - 외부 전송 스위치가 꺼져 있으면 어댑터를 만들지도 않는다. 토큰이 있어도 나가지 않는다
+def get_slack() -> SlackPort:
+    if not get_settings().allow_external_send:
+        raise ModeNotAvailable(
+            "외부 전송이 꺼져 있습니다(ALLOW_EXTERNAL_SEND=false). "
+            "외부 전송이 필요하면 설정을 켜고 다시 시도해 주세요."
+        )
+    return _live_slack()
