@@ -31,6 +31,9 @@ class Settings(BaseSettings):
     # 강사님 코드엔 이 두 필드가 없어 SlackClient() 를 만드는 순간 AttributeError 가 난다
     slack_bot_token: SecretStr | None = None
     slack_default_channel: str = ""
+    # --- MCP -----------------------------
+    # MCP 호출자가 적을 수 있는 보안등급의 상한. 인증이 없으므로 서버 운영자가 정한다
+    mcp_max_clearance: str = Field(default="일반", pattern=r"^(일반|3급|대외비)$")
     # 실습 - 환경변수 값 추가 upstage_api_key
     upstage_api_key: SecretStr | None = None
     upstage_base_url: str = "https://api.upstage.ai/v1"

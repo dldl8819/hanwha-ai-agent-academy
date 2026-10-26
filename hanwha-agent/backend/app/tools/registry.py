@@ -64,4 +64,4 @@ def load_all() -> None:
         register(Tool(name=m.NAME, description=m.SCHEMA["description"],
                       side_effect=m.SIDE_EFFECT, fn=m.run, schema=m.SCHEMA))
 
-    from app.tools import send_slack  # noqa: F401  import 시 등록
+    from app.tools import get_document_versions, send_slack  # noqa: F401  import 시 등록

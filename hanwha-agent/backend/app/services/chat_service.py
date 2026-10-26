@@ -16,6 +16,7 @@ from app.models import Run, UsageLog
 from app.services.ids import next_run_id
 from app.schemas.chat import AnswerOut, AskOut, AnswerSource
 from app.agent.chain import build_result_chain 
+from app.agent.patterns import route, route_after_search, run_chain, run_parallel
 from app.tools import registry
 
 
@@ -277,3 +278,43 @@ def ask_with_tools(*, question: str, run_id: str | None = None, user_id: int = 1
                  sent=sent)
     _close_run(run_id, out, started)
     return out
+
+
+# ----- 워크플로우 : 체이닝 + 라우팅 + 병렬 --------------------------
+# 순서를 모델이 아니라 우리가 정한다. 검색 → (근거 있음) 문서별 버전 이력 동시 조회 / (없음) 안내
+
+def _wf_search(state: dict) -> dict:
+    out = registry.get("search_documents").run(query=state["question"], user=state["user"])
+    return {"sources": out["sources"], "passed": out["passed"]}
+
+
+def _wf_found(state: dict) -> dict:
+    tool = registry.get("get_document_versions")
+    ids = sorted({s["doc_id"] for s in state["sources"]})
+    return {"versions": run_parallel({d: (tool.run, {"doc_id": d}) for d in ids})}
+
+
+def _wf_insufficient(state: dict) -> dict:
+    return {"versions": {}, "note": FALLBACK_ANSWER}
+
+
+def _wf_route(state: dict) -> dict:
+    return route(state, route_after_search, {"found": _wf_found, "insufficient": _wf_insufficient})
+
+
+def run_workflow(*, question: str) -> dict:
+    q = check_question(question)
+    registry.load_all()
+    state = {"question": q, "user": {**DEFAULT_USER, "clearance": "일반"}}
+    return run_chain([_wf_search, _wf_route], state)
+
+
+# ----- 같은 흐름을 LangGraph 로 ------------------------------------
+def run_graph(*, question: str) -> dict:
+    from app.agent.graph import build_graph
+
+    q = check_question(question)
+    registry.load_all()
+    graph = build_graph(_wf_search, {"found": _wf_found, "insufficient": _wf_insufficient}, route_after_search)
+    return graph.invoke({"question": q, "user": {**DEFAULT_USER, "clearance": "일반"}})
+
