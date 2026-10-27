@@ -31,6 +31,25 @@ target_metadata = Base.metadata
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
 
+LAGNGRAPH_TABLES = {"checkpoints", "checkpoint_blobs", "checkpoint_writes", "checkpoint_migrations"}
+
+def include_name(name, type_, parent_ames) -> bool:
+    if type_ == "table":
+        return name not in LAGNGRAPH_TABLES
+    return True
+
+
+# LangGraph 체크포인터가 직접 만드는 표
+# - 우리 모델(Base.metadata)에 없으니 autogenerate 가 "DB 에만 있는 표"로 보고 drop_table 을 만든다
+# - 비교 대상에서 빼서 그 drop 이 생기지 않게 한다
+LANGGRAPH_TABLES = {"checkpoints", "checkpoint_blobs", "checkpoint_writes", "checkpoint_migrations"}
+
+
+def include_name(name, type_, parent_names) -> bool:
+    if type_ == "table":
+        return name not in LANGGRAPH_TABLES
+    return True
+
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.
@@ -48,6 +67,7 @@ def run_migrations_offline() -> None:
     context.configure(
         url=url,
         target_metadata=target_metadata,
+        include_name=include_name,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
     )
@@ -71,7 +91,8 @@ def run_migrations_online() -> None:
 
     with connectable.connect() as connection:
         context.configure(
-            connection=connection, target_metadata=target_metadata
+            connection=connection, target_metadata=target_metadata,
+            include_name=include_name,
         )
 
         with context.begin_transaction():

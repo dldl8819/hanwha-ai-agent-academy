@@ -9,6 +9,7 @@ from app.models.run import Run, RunStep
 from app.models.usage import UsageLog
 from app.models.eval import EvalRun, EvalWeakType
 from app.models.draft import Draft
+from app.models.approval import ApprovalRequest, AuditLog
 
 __all__ = [
     "Base",
@@ -23,6 +24,8 @@ __all__ = [
     "EvalRun",
     "EvalWeakType",
     "Draft",
+    "ApprovalRequest",
+    "AuditLog",
     "UsageLog",
     "CLEARANCE",
 ]
