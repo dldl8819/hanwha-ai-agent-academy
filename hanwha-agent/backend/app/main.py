@@ -6,7 +6,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 # from app.api.v1.documents import router as document_router
 # from app.api.v1.auth import router as auth_router
-from app.api.v1 import auth, documents, chat, ops
+from app.api.v1 import approvals, auth, documents, chat, ops
 from app.core.config import get_settings
 from app.core.exceptions import AgentError
 from contextlib import asynccontextmanager
@@ -76,6 +76,12 @@ app.include_router(
 
 app.include_router(
     ops.router,
+    prefix="/api/v1"
+)
+
+# 승인함 (/api/v1/approvals)
+app.include_router(
+    approvals.router,
     prefix="/api/v1"
 )
 

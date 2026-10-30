@@ -27,4 +27,12 @@ class ApprovalState(TypedDict, total=False):
     text: str       # 보낼 문구 (draft 가 채운다)
     decision: dict  # 재개할 때 받은 사람의 결정 (gate 가 채운다)
     result: dict    # 전송 결과 (send 가 채운다)
-    rewrites: int   # 반려 뒤 다시 쓴 횟수 (아직 쓰지 않는다 — 반려 루프가 없다)
+    rewrites: int   # 반려 뒤 다시 쓴 횟수 (rewrite 가 센다)
+
+
+# Supervisor 그래프 상태 : supervisor 가 고른 담당 → 다시 supervisor → ...
+class SupervisorState(WorkflowState, total=False):
+    next: str       # supervisor 가 고른 다음 담당
+    turns: int      # supervisor 가 고른 횟수
+    draft: dict     # draft 담당이 채운다
+    run_id: str     # draft 가 만든 실행 기록 번호

@@ -51,8 +51,11 @@ def build_loop_graph(search: Step, fix: Step, routes: dict[str, Step], pick: Cal
 
 
 # ----- 승인 그래프 ---------------------------------------------------
-#   START -> draft -> gate (interrupt 로 멈춤) -- 승인 -> send -> END
-#                                              └ 반려 ------------> END
+#   START -> draft -> gate (멈춤) --(승인)-------------------------> send -> END
+#                       ^  └-(반려 · 다시 쓴 횟수 < MAX_REWRITES)--> rewrite --+
+#                       └-----------------------------------------------------+
+#                          └-(반려 · 상한)-------------------------------------> END
+MAX_REWRITES = 2
 
 # 사람의 결정을 기다린다
 # - interrupt() 는 여기서 그래프를 멈추고 값을 바깥에 보인다
@@ -61,7 +64,7 @@ def _gate(state: dict) -> dict:
     return {"decision": interrupt({"text": state["text"]})}
 
 
-def build_approval_graph(draft: Step, send: Step, *, checkpointer):
+def build_approval_graph(draft: Step, send: Step, *, checkpointer, rewrite: Step | None = None):
     # 멈춘 자리를 저장할 곳이 없으면 재개할 수 없다
     if checkpointer is None:
         raise ValueError("승인 그래프는 저장소가 있어야 멈췄다 이어 간다. checkpointer를 넘기세요.")
@@ -74,8 +77,40 @@ def build_approval_graph(draft: Step, send: Step, *, checkpointer):
     g.add_edge("draft", "gate")
 
     def pick(state: dict) -> str:
-        return "send" if state["decision"].get("approved") else "end"
+        if state["decision"].get("approved"):
+            return "send"
+        return "rewrite" if rewrite is not None and state.get("rewrites", 0) < MAX_REWRITES else "end"
 
-    g.add_conditional_edges("gate", pick, {"send": "send", "end": END})
+    routes = {"send": "send", "end": END}
+    # rewrite 를 넘기면 반려 → 다시 쓰기 → gate(다시 멈춤) 순환이 생긴다
+    if rewrite is not None:
+        g.add_node("rewrite", rewrite)
+        g.add_edge("rewrite", "gate")
+        routes["rewrite"] = "rewrite"
+    g.add_conditional_edges("gate", pick, routes)
     g.add_edge("send", END)
     return g.compile(checkpointer=checkpointer)
+
+
+# ----- supervisor 그래프 ---------------------------------------------
+#   START -> supervisor --(pick 이 고른 이름)--> search / draft --+
+#                ^                                              |
+#                └──────────────── 끝나면 돌아온다 ──────────────┘
+#                └── "finish" -> END
+from app.agent.state import SupervisorState  # noqa: E402
+
+
+def build_supervisor_graph(workers: dict[str, Step], pick: Callable[[dict], str]):
+    # 고르기만 하고 일은 하지 않는다. 몇 번 골랐는지 센다
+    def supervisor(state: dict) -> dict:
+        return {"next": pick(state), "turns": state.get("turns", 0) + 1}
+
+    g = StateGraph(SupervisorState)
+    g.add_node("supervisor", supervisor)
+    for name, step in workers.items():
+        g.add_node(name, step)
+        g.add_edge(name, "supervisor")      # 담당이 끝나면 supervisor 로 돌아간다
+    g.add_edge(START, "supervisor")
+    g.add_conditional_edges("supervisor", lambda s: s["next"], {**{n: n for n in workers}, "finish": END})
+    return g.compile()
+

@@ -3,14 +3,14 @@
 # - send_slack 의 실제 실행(Tool.fn)은 이 서비스의 _send 에서만 부른다. 루프에서는 Tool.run() 이 막는다
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import ExternalServiceError, ModeNotAvailable, NotFound, PermissionDenied
 from app.db.session import session_scope
-from app.models import ApprovalRequest, AuditLog, User
+from app.models import ApprovalRequest, AuditLog, SlackMessageLog, User
 from app.tools import registry
 
 WAITING, APPROVED, DONE, REJECTED = ("대기중", "승인", "승인·실행", "반려됨")
@@ -47,7 +47,14 @@ def _send(state: dict) -> dict:
 
 def build_graph(checkpointer):
     from app.agent.graph import build_approval_graph
-    return build_approval_graph(_draft, _send, checkpointer=checkpointer)
+    return build_approval_graph(_draft, _send, checkpointer=checkpointer, rewrite=_rewrite)
+
+
+# 반려 사유를 붙여 다시 쓴다
+# - 지금은 문구 끝에 사유를 덧붙이기만 한다. 모델이 다시 쓰게 바꿔도 이 자리만 바뀐다
+def _rewrite(state: dict) -> dict:
+    note = state["decision"].get("note", "")
+    return {"text": f"{state['text']} (사유 반영: {note})", "rewrites": state.get("rewrites", 0) + 1}
 
 
 # 멈춘 그래프를 사람의 결정으로 이어서 실행
@@ -75,11 +82,53 @@ def events(req_id: str) -> list[str]:
         return list(s.scalars(select(AuditLog.event).where(AuditLog.approval_id == req_id).order_by(AuditLog.id)))
 
 
+# 승인 대기 목록 (요청자 이름과 감사 로그 포함)
+def list_waiting() -> list[dict]:
+    with session_scope() as s:
+        rows = s.execute(
+            select(ApprovalRequest, User.name)
+            .join(User, User.id == ApprovalRequest.requester_id)
+            .where(ApprovalRequest.status == WAITING)
+            .order_by(ApprovalRequest.requested_at)
+        ).all()
+        items = [{"req_id": row.id, "text": row.payload["text"], "requester": name,
+                  "action_type": row.action_type, "status": row.status,
+                  "requested_at": row.requested_at} for row, name in rows]
+    for item in items:
+        item["events"] = events(item["req_id"])
+    return items
+
+
+# 승인함 위쪽 지표 넷 : 대기 · 오늘 승인 · 오늘 반려 · 평균 처리 분
+def summary() -> dict:
+    today = date.today()
+    with session_scope() as s:
+        waiting = s.scalar(select(func.count()).select_from(ApprovalRequest)
+                           .where(ApprovalRequest.status == WAITING))
+        decided = s.execute(select(ApprovalRequest.status, ApprovalRequest.requested_at, ApprovalRequest.decided_at)
+                            .where(ApprovalRequest.status != WAITING, ApprovalRequest.decided_at.is_not(None),
+                                   func.date(ApprovalRequest.decided_at) == today)).all()
+    minutes = [int((row.decided_at - row.requested_at).total_seconds() // 60) for row in decided]
+    return {"waiting": waiting,
+            "approved_today": sum(1 for row in decided if row.status == DONE),
+            "rejected_today": sum(1 for row in decided if row.status == REJECTED),
+            "avg_minutes": round(sum(minutes) / len(minutes)) if minutes else None}
+
+
+# 실제로 보낸 메시지를 남긴다
+def _log_sent(req_id: str, res: dict, text: str) -> None:
+    with session_scope() as s:
+        s.add(SlackMessageLog(approval_id=req_id, channel=res.get("channel", ""), ts=res.get("ts", ""), text=text))
+
+
 # 재개 뒤 결과 상태와 로그 한 줄
+# - 다시 대기로 돌아가면(반려 뒤 재작성) 결정자와 결정 시각을 비운다
 def _close(req_id: str, status: str, event: str, text: str | None = None) -> None:
     with session_scope() as s:
         row = s.get(ApprovalRequest, req_id)
         row.status = status[:24]
+        if status == WAITING:
+            row.approver_id, row.decided_at = None, None
         if text is not None:
             row.payload = {"text": text}
         s.add(AuditLog(approval_id=req_id, run_id=row.run_id, actor="시스템", event=event[:64]))
@@ -111,6 +160,8 @@ def approve(*, req_id: str, approver_id: int, checkpointer) -> dict:
         _close(req_id, "실패 · 재개 오류", "재개 실패")
         raise
     res = out.get("result", {})
+    if res.get("ok"):
+        _log_sent(req_id, res, out.get("text", ""))
     status, event = ((DONE, "Slack 전송 완료") if res.get("ok")
                      else (f"실패 · {res.get('error')}", f"전송 안 됨 · {res.get('error')}"))
     _close(req_id, status, event)
@@ -118,10 +169,14 @@ def approve(*, req_id: str, approver_id: int, checkpointer) -> dict:
 
 
 # 반려
-# - 지금 그래프는 반려하면 END 로 간다. 다시 멈추는 일(again)은 반려 루프가 생기면 쓰인다
+# - 다시 쓴 횟수가 상한 아래면 그래프가 rewrite → gate 로 돌아가 다시 멈춘다. 요청은 새 문구로 대기
 def reject(*, req_id: str, approver_id: int, note: str, checkpointer) -> dict:
     row = _decide(req_id, approver_id, REJECTED, "반려", note)
-    out = _resume(checkpointer, row.thread_id, {"approved": False, "note": note})
+    try:
+        out = _resume(checkpointer, row.thread_id, {"approved": False, "note": note})
+    except Exception:
+        _close(req_id, "실패 · 재개 오류", "재개 실패")
+        raise
     again = out["__interrupt__"][0].value["text"] if "__interrupt__" in out else None
     if again is not None:
         _close(req_id, WAITING, "재작성", text=again)

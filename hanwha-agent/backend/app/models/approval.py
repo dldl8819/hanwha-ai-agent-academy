@@ -39,3 +39,18 @@ class AuditLog(Base):
     actor: Mapped[str] = mapped_column(String(50))
     event: Mapped[str] = mapped_column(String(64))
     detail: Mapped[str] = mapped_column(Text, default="")
+
+
+# 실제로 보낸 Slack 메시지 한 건
+# - ts(메시지 식별자)가 있어야 나중에 그 메시지를 지우거나 수정할 수 있다
+# - 강사님 코드의 칸 이름은 sent_ad 다. sent_at 의 오타로 보고 고쳐 옮겼다
+class SlackMessageLog(Base):
+    __tablename__ = "slack_message_log"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    approval_id: Mapped[str] = mapped_column(ForeignKey("approval_requests.id"), index=True)
+    channel: Mapped[str] = mapped_column(String(32))
+    ts: Mapped[str] = mapped_column(String(32))
+    text: Mapped[str] = mapped_column(Text)
+    sent_at: Mapped[datetime] = mapped_column(default=datetime.now)
+    deleted_at: Mapped[datetime | None] = mapped_column(nullable=True)

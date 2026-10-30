@@ -43,3 +43,16 @@ def get_db() -> Iterator[Session]:
         db.close()
 
 SessionDep = Annotated[Session, Depends(get_db)]
+
+
+# 승인 그래프를 이어 갈 저장소
+# - 요청마다 연결을 열고, 응답이 끝나면 닫는다
+def get_checkpointer() -> Iterator[object]:
+    from langgraph.checkpoint.postgres import PostgresSaver
+
+    url = get_settings().database_url.replace("postgresql+psycopg://", "postgresql://", 1)
+    with PostgresSaver.from_conn_string(url) as cp:
+        yield cp
+
+
+CheckpointerDep = Annotated[object, Depends(get_checkpointer)]
